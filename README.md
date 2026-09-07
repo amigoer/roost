@@ -20,6 +20,8 @@ A macOS menu-bar companion that answers one question from the corner of your eye
 
 </div>
 
+<img src="docs/panel.png" alt="The expanded island: five sessions, what each is doing, and how long it has been doing it">
+
 ---
 
 ## Why
@@ -47,8 +49,25 @@ top-right corner say exactly which state it is.
 | <img src="docs/mascot/error.png" width="52"> | `error` | red **✕** | Something failed. |
 | <img src="docs/mascot/idle.png" width="52"> | `idle` | grey **z** | Left alone long enough to be clutter. Folded into a single footer line. |
 
-The same mark appears in three places and never disagrees with itself: the menu
-bar item, the collapsed island, and every row of the expanded list.
+The same mark appears on the collapsed island and on every row of the expanded
+list, and the two never disagree. There is deliberately **no menu bar item** —
+one more icon up there is the clutter this app exists to remove.
+
+## Anatomy of a row
+
+```
+✳  perch · SVG 素材实现                          🐤  3m
+   asked you a question
+```
+
+| Part | Says |
+|:--|:--|
+| Agent mark | Whose session it is. One agent today; the slot is there for the day there are more. |
+| `project · title` | Which repo, then which conversation. The repo answers "do I care" faster. |
+| Second line | What it is doing *right now*: the tool, then the argument a person would recognise — the command, the file, the pattern — pulled straight out of the transcript. Blocked rows say why instead. |
+| Model | What it is running, from the desktop app's own record of the session. |
+| Mascot | The state, with the badge that says which kind of stop it is. |
+| Elapsed | Blocked rows count how long they have been stuck. Everything else counts how long since anything happened, which is what makes a stale session obvious. |
 
 ## How it reads state
 
@@ -100,8 +119,15 @@ The code enforces these, and the comments say so:
 ## Interaction
 
 - **Hover** the notch to expand the list (up to 6 rows).
-- **Click a blocked row** to jump to the session that has waited longest.
-- **Click any other row** to raise the desktop app.
+- **Click a row** to open that session in the desktop app, by the only handle
+  its deep links accept: `claude://code/continue?session=local_…`, the same link
+  the app's own menus build. Blocked rows fall back to `needs-input` when the
+  session has no desktop record.
+- Current desktop builds gate code deep links per account — when the gate is
+  shut the app logs `code entry deep link gated off` and merely comes forward.
+  Nothing an outside app can change; the link Roost sends is already correct.
+- **Right-click** the notch — island or bare cutout — for the menu: forced
+  states and quit.
 - Displays without a notch get a 185 pt stand-in strip, centred where a notch
   would be.
 
@@ -116,8 +142,8 @@ xcodebuild -project Roost.xcodeproj -scheme Roost -configuration Debug -derivedD
 open build/Build/Products/Debug/Roost.app
 ```
 
-Roost is an accessory app: no Dock icon, no window, just the menu bar item and
-the island. Quit it from the menu bar.
+Roost is an accessory app: no Dock icon, no window, no menu bar item — just the
+island. Right-click the notch to quit.
 
 Run the core tests with:
 
@@ -142,9 +168,9 @@ unit tested without a screen.
 
 ## Development
 
-The menu bar item carries a debug menu that forces any state — dormant, running,
-done, waiting, stalled, error, and the escalated variants — so the visual design
-can be judged without waiting for a real session to produce it.
+Right-clicking the notch opens a debug menu that forces any state — dormant,
+running, done, waiting, stalled, error, and the escalated variants — so the
+visual design can be judged without waiting for a real session to produce it.
 
 ## Status
 

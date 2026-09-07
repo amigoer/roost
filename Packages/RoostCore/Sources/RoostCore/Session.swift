@@ -13,6 +13,8 @@ public struct Session: Sendable, Identifiable, Hashable {
     public let desktopId: String?
     /// Model the session is running, short form.
     public let model: String?
+    /// How the session answers permission prompts, when it is known.
+    public let permissionMode: String?
     public let startedAt: Date
     public var state: SessionState
     /// When the session entered its current state, for escalation timing.
@@ -42,7 +44,7 @@ public struct Session: Sendable, Identifiable, Hashable {
     }
 
     public init(id: String, pid: pid_t, name: String, cwd: String, entrypoint: String?,
-                desktopId: String? = nil, model: String? = nil,
+                desktopId: String? = nil, model: String? = nil, permissionMode: String? = nil,
                 startedAt: Date, state: SessionState, stateSince: Date,
                 activity: String?, detail: String? = nil, lastActivityAt: Date) {
         self.id = id
@@ -52,6 +54,7 @@ public struct Session: Sendable, Identifiable, Hashable {
         self.entrypoint = entrypoint
         self.desktopId = desktopId
         self.model = model
+        self.permissionMode = permissionMode
         self.startedAt = startedAt
         self.state = state
         self.stateSince = stateSince

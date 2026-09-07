@@ -49,6 +49,7 @@ public actor SessionScanner {
                 entrypoint: entry.entrypoint,
                 desktopId: known?.id,
                 model: known?.modelLabel,
+                permissionMode: known?.permissionMode,
                 startedAt: entry.startedAt,
                 state: state,
                 stateSince: stateSince[entry.sessionId] ?? now,

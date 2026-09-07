@@ -14,6 +14,7 @@
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
 <img src="https://img.shields.io/badge/%E5%8F%AA%E8%AF%BB-%E6%97%A0%20hook%20%C2%B7%20%E6%97%A0%E7%BD%91%E7%BB%9C-30D158?style=flat-square" alt="只读">
 <img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
+<a href="https://linux.do"><img src="https://img.shields.io/badge/linux.do-1c1206?style=flat-square&logo=discourse&logoColor=white" alt="linux.do"></a>
 
 [English](README.md) · **简体中文**
 

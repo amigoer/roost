@@ -14,6 +14,7 @@ A macOS menu-bar companion that answers one question from the corner of your eye
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
 <img src="https://img.shields.io/badge/read--only-no%20hooks%2C%20no%20network-30D158?style=flat-square" alt="Read-only">
 <img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
+<a href="https://linux.do"><img src="https://img.shields.io/badge/linux.do-1c1206?style=flat-square&logo=discourse&logoColor=white" alt="linux.do"></a>
 
 **English** · [简体中文](README.zh-CN.md)
 

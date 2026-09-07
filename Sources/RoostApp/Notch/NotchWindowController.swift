@@ -17,6 +17,9 @@ final class NotchWindowController {
     private static let hitPaddingX: CGFloat = 12
     private static let hitPaddingY: CGFloat = 18
 
+    /// Right-click on the island, in screen coordinates.
+    var onSecondaryClick: ((NSPoint) -> Void)?
+
     private let model: RoostModel
     private let hover = HoverDetector()
     private var panels: [String: NotchPanel] = [:]
@@ -35,6 +38,9 @@ final class NotchWindowController {
             guard let self, let index = rowIndex(at: point),
                   index < model.visibleSessions.count else { return }
             SessionActivator.activate(model.visibleSessions[index])
+        }
+        hover.onSecondaryClick = { [weak self] point in
+            self?.onSecondaryClick?(point)
         }
         hover.onChange = { [weak self] hovering in
             guard let self else { return }

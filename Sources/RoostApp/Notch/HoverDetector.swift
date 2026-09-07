@@ -16,6 +16,9 @@ final class HoverDetector {
     /// Screen-coordinate cursor reports while hovering, and clicks.
     var onMove: ((NSPoint) -> Void)?
     var onClick: ((NSPoint) -> Void)?
+    /// Right-click anywhere on the island. With no menu bar item, this is the
+    /// app's only menu, so it must work whether or not the island is showing.
+    var onSecondaryClick: ((NSPoint) -> Void)?
 
     init() {
         panel = HitPanel(contentRect: .zero)
@@ -24,6 +27,7 @@ final class HoverDetector {
         view.onEnter = { [weak self] in self?.enter() }
         view.onExit = { [weak self] in self?.exitIfOutside() }
         view.onClick = { [weak self] in self?.onClick?(NSEvent.mouseLocation) }
+        view.onSecondaryClick = { [weak self] in self?.onSecondaryClick?(NSEvent.mouseLocation) }
     }
 
     func setHitRect(_ rect: NSRect) {
@@ -101,8 +105,10 @@ private final class TrackingView: NSView {
     var onEnter: (() -> Void)?
     var onExit: (() -> Void)?
     var onClick: (() -> Void)?
+    var onSecondaryClick: (() -> Void)?
 
     override func mouseDown(with event: NSEvent) { onClick?() }
+    override func rightMouseDown(with event: NSEvent) { onSecondaryClick?() }
 
     override func updateTrackingAreas() {
         super.updateTrackingAreas()

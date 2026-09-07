@@ -5,33 +5,34 @@ import RoostCore
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = RoostModel()
     private lazy var notch = NotchWindowController(model: model)
-    private var statusItem: NSStatusItem?
-    private var statusFace: MascotFace?
+    private lazy var menu = buildMenu()
     private var hitSyncTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
         notch.start()
         model.startRefreshing()
-        installStatusItem()
 
-        // Keep the collapsed hit target and the menu bar mark in step with the
-        // island as state changes.
+        // No menu bar item: another icon up there is exactly the clutter this
+        // app exists to avoid, and the island is already a target. Right-click
+        // it — including the bare notch, when nothing is running — for the menu.
+        notch.onSecondaryClick = { [weak self] point in
+            guard let self else { return }
+            menu.popUp(positioning: nil, at: point, in: nil)
+        }
+
+        // Keep the collapsed hit target in step with the island as state changes.
         hitSyncTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
                 self?.notch.syncHitRect()
-                self?.refreshStatusIcon()
             }
         }
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 
-    private func installStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.toolTip = "Roost"
-
+    private func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.addItem(previewItem("Live detection", nil))
         menu.addItem(.separator())
@@ -47,19 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(previewItem("Force: error", .init(level: .blocked, tier: .calm, blockedCount: 1, face: .error)))
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Roost", action: #selector(quit), keyEquivalent: "q").target = self
-
-        item.menu = menu
-        statusItem = item
-        refreshStatusIcon()
-    }
-
-    /// The menu bar wears the same mark as the island, so the two never
-    /// disagree about what is going on.
-    private func refreshStatusIcon() {
-        let face = model.face
-        guard face != statusFace else { return }
-        statusFace = face
-        statusItem?.button?.image = PixelChick.image(face, cell: MascotView.large)
+        return menu
     }
 
     private func previewItem(_ title: String, _ override: RoostModel.PreviewOverride?) -> NSMenuItem {
@@ -72,7 +61,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func selectPreview(_ sender: NSMenuItem) {
         model.previewOverride = (sender.representedObject as? Box)?.value
         notch.syncHitRect()
-        refreshStatusIcon()
     }
 
     @objc private func quit() {

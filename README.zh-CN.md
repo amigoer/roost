@@ -67,6 +67,30 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 | 吉祥物 | 状态，以及说明是哪一类停顿的徽标。 |
 | 时长 | 阻塞的行数的是卡了多久；其余的数的是距离上次有动静多久——放久了的会话一眼就能认出来。 |
 
+## 在刘海里直接批准
+
+权限确认不用切走就能答。Roost 装一个 `PreToolUse` hook：Claude Code 把这次工具调用
+按住，hook 去问 Roost，岛上就出现这次调用和 **Deny** / **Allow** 两个按钮。
+
+<img src="docs/approval.png" alt="被按住的 Bash 调用，右侧是 Deny 和 Allow">
+
+从刘海的右键菜单里打开——*Answer permission prompts here*。它往
+`~/.claude/settings.json` 里加一条指向 app 包内 `roost-hook` 的记录；同一个菜单项
+再点一次就删掉，别人的 hook 一个都不动。
+
+失败路径故意做得很无聊：Roost 没在跑、socket 不在、60 秒没人答——hook 什么都不输出，
+会话就按它原来的方式弹窗。它可以让一次工具调用多等一会儿，但改不了这次调用的结果。
+
+| 工具 | 会被按住吗 |
+|:--|:--|
+| `Read`、`Grep`、`Glob`、`TodoWrite` 等 | 从不。在 hook 里就滤掉了，常规路径不付任何跨进程代价。 |
+| `Bash`、`WebFetch`、`mcp__*` 及其余 | 会——除非会话跑在 `bypassPermissions` 或 `plan` 模式下。 |
+| `Write`、`Edit`、`MultiEdit`、`NotebookEdit` | 只在 `default` 模式下按住。accept-edits 的会话早就答过了。 |
+
+岛本身是穿透的，所以按钮在两边都是几何：卡片按照命中测试读的同一组常量排版。
+这个映射[有测试](Packages/RoostCore/Tests/RoostCoreTests/ApprovalTests.swift)保着，
+因为点错卡片的哪一半，就等于答错了问题。
+
 ## 它怎么判断状态
 
 不用装 hook，没有常驻守护进程，不联网。Roost 只读你本来就有的文件：
@@ -114,7 +138,9 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 - 目前的桌面端版本按账号对 code 深链做了开关，关着的时候它只会把窗口拉到前面，
   并在日志里写 `code entry deep link gated off`。外部应用改不了这个开关；
   Roost 这边发出的链接已经是对的。
-- **右键点击**刘海——不管岛在不在——打开菜单：强制状态、退出。
+- **点 Deny 或 Allow** 回答被按住的工具调用。有卡片在等的时候岛会自己保持展开，
+  不需要鼠标一直停在那儿。
+- **右键点击**刘海——不管岛在不在——打开菜单：批准开关、强制状态、退出。
 - 没有刘海的显示器会得到一条 185 pt 的替代条，位置就在刘海本该在的地方。
 
 ## 构建

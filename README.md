@@ -69,6 +69,35 @@ one more icon up there is the clutter this app exists to remove.
 | Mascot | The state, with the badge that says which kind of stop it is. |
 | Elapsed | Blocked rows count how long they have been stuck. Everything else counts how long since anything happened, which is what makes a stale session obvious. |
 
+## Answering from the island
+
+A permission prompt can be answered without leaving what you were doing. Roost
+installs a `PreToolUse` hook; Claude Code holds the tool call while the hook
+asks Roost, and the island shows the call with **Deny** and **Allow**.
+
+<img src="docs/approval.png" alt="A held Bash call, with Deny and Allow">
+
+Turn it on from the notch's right-click menu — *Answer permission prompts here*.
+That adds one entry to `~/.claude/settings.json` pointing at the `roost-hook`
+binary inside the app bundle. The same item takes it back out, and hooks that
+are not Roost's are never touched.
+
+Failure is deliberately boring. If Roost is not running, if the socket is gone,
+if nobody answers within 60 seconds — the hook prints nothing and the session
+prompts exactly as it always did. This can make a tool call wait. It cannot
+change what one does.
+
+| Tool | Held? |
+|:--|:--|
+| `Read`, `Grep`, `Glob`, `TodoWrite`, … | Never. Filtered inside the hook, so the common path never pays for a round trip. |
+| `Bash`, `WebFetch`, `mcp__*`, everything else | Held — unless the session runs in `bypassPermissions` or `plan`. |
+| `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | Held only in `default` mode. An accept-edits session has answered already. |
+
+The island is click-through by design, so the buttons are geometry on both
+sides: the card lays them out from the same constants the hit test reads. That
+mapping is [tested](Packages/RoostCore/Tests/RoostCoreTests/ApprovalTests.swift),
+because clicking the wrong half of a card would answer the wrong question.
+
 ## How it reads state
 
 No hooks to install, no daemon, no network. Roost only reads files you already
@@ -126,8 +155,10 @@ The code enforces these, and the comments say so:
 - Current desktop builds gate code deep links per account — when the gate is
   shut the app logs `code entry deep link gated off` and merely comes forward.
   Nothing an outside app can change; the link Roost sends is already correct.
-- **Right-click** the notch — island or bare cutout — for the menu: forced
-  states and quit.
+- **Click Deny or Allow** on a held tool call. The island stays open on its own
+  while one is waiting, so answering never depends on the cursor being there.
+- **Right-click** the notch — island or bare cutout — for the menu: approvals,
+  forced states, quit.
 - Displays without a notch get a 185 pt stand-in strip, centred where a notch
   would be.
 

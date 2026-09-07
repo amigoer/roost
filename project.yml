@@ -29,6 +29,9 @@ targets:
     dependencies:
       - package: RoostCore
         product: RoostCore
+      - target: RoostHook
+        copy:
+          destination: executables
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.amigoer.roost
@@ -41,3 +44,18 @@ targets:
         CODE_SIGN_IDENTITY: "-"
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
+
+  RoostHook:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/RoostHook
+    dependencies:
+      - package: RoostCore
+        product: RoostCore
+    settings:
+      base:
+        PRODUCT_NAME: roost-hook
+        PRODUCT_BUNDLE_IDENTIFIER: com.amigoer.roost.hook
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"

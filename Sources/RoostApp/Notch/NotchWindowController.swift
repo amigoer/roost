@@ -32,10 +32,17 @@ final class NotchWindowController {
 
     func start() {
         hover.onMove = { [weak self] point in
-            self?.model.hoveredIndex = self?.rowIndex(at: point)
+            guard let self else { return }
+            model.hoveredApproval = approvalHit(at: point)
+            model.hoveredIndex = model.hoveredApproval == nil ? rowIndex(at: point) : nil
         }
         hover.onClick = { [weak self] point in
-            guard let self, let index = rowIndex(at: point),
+            guard let self else { return }
+            if let held = model.approvals.current, let hit = approvalHit(at: point) {
+                model.approvals.decide(held.id, hit == .allow ? .allow : .deny)
+                return
+            }
+            guard let index = rowIndex(at: point),
                   index < model.visibleSessions.count else { return }
             SessionActivator.activate(model.visibleSessions[index])
         }
@@ -45,7 +52,10 @@ final class NotchWindowController {
         hover.onChange = { [weak self] hovering in
             guard let self else { return }
             model.isExpanded = hovering
-            if !hovering { model.hoveredIndex = nil }
+            if !hovering {
+                model.hoveredIndex = nil
+                model.hoveredApproval = nil
+            }
             // Grow the hit rect immediately, not on the animation's schedule,
             // or the cursor lands outside it and the panel closes underneath.
             updateHitRect()
@@ -119,11 +129,27 @@ final class NotchWindowController {
     /// Maps a screen point to a list row. The island is top-anchored, so the
     /// only thing that matters is distance down from the top of the screen.
     private func rowIndex(at point: NSPoint) -> Int? {
-        guard model.isExpanded, let screen = hoverScreen else { return nil }
+        guard model.showsPanel, let screen = hoverScreen else { return nil }
         let notch = screen.signalAnchorRect.size
         return IslandGeometry.rowIndex(atOffsetFromTop: screen.frame.maxY - point.y,
                                        notch: notch,
-                                       rowCount: model.visibleSessions.count)
+                                       rowCount: model.visibleSessions.count,
+                                       hasApproval: model.approvals.current != nil)
+    }
+
+    /// The island is centred on its screen, so a click has to be measured from
+    /// the island's own left edge before the card's buttons mean anything.
+    private func approvalHit(at point: NSPoint) -> IslandGeometry.ApprovalHit? {
+        guard model.approvals.current != nil, let screen = hoverScreen else { return nil }
+        let notch = screen.signalAnchorRect.size
+        let width = IslandGeometry.expandedSize(notch: notch,
+                                                sessionCount: model.visibleSessions.count,
+                                                hasFooter: model.staleCount > 0,
+                                                hasApproval: true).width
+        return IslandGeometry.approvalHit(offsetFromTop: screen.frame.maxY - point.y,
+                                          offsetFromLeft: point.x - (screen.frame.midX - width / 2),
+                                          notch: notch,
+                                          islandWidth: width)
     }
 
     private func updateHitRect() {
@@ -132,10 +158,12 @@ final class NotchWindowController {
         let size = IslandGeometry.size(level: model.level,
                                        tier: model.tier,
                                        notch: anchor.size,
-                                       expanded: model.isExpanded,
-                                       sessionCount: model.sessions.count)
-        let padX = model.isExpanded ? 0 : Self.hitPaddingX
-        let padY = model.isExpanded ? 0 : Self.hitPaddingY
+                                       expanded: model.showsPanel,
+                                       sessionCount: model.visibleSessions.count,
+                                       hasFooter: model.staleCount > 0,
+                                       hasApproval: model.approvals.current != nil)
+        let padX = model.showsPanel ? 0 : Self.hitPaddingX
+        let padY = model.showsPanel ? 0 : Self.hitPaddingY
         let rect = NSRect(x: screen.frame.midX - size.width / 2 - padX,
                           y: screen.frame.maxY - size.height - padY,
                           width: size.width + padX * 2,

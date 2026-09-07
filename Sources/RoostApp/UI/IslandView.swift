@@ -16,9 +16,10 @@ struct IslandView: View {
         IslandGeometry.size(level: model.level,
                             tier: model.tier,
                             notch: notchSize,
-                            expanded: model.isExpanded,
+                            expanded: model.showsPanel,
                             sessionCount: model.visibleSessions.count,
-                            hasFooter: model.staleCount > 0)
+                            hasFooter: model.staleCount > 0,
+                            hasApproval: model.approvals.current != nil)
     }
 
     var body: some View {
@@ -32,7 +33,7 @@ struct IslandView: View {
 
     @ViewBuilder
     private var island: some View {
-        if model.level == .dormant && !model.isExpanded {
+        if model.level == .dormant && !model.showsPanel {
             Color.clear.frame(width: notchSize.width, height: notchSize.height)
         } else {
             ZStack {
@@ -42,7 +43,7 @@ struct IslandView: View {
                     .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
 
 
-                if model.isExpanded {
+                if model.showsPanel {
                     expandedContent
                 } else {
                     CollapsedContent(face: model.face,
@@ -69,6 +70,10 @@ struct IslandView: View {
                 .frame(height: 1)
                 .padding(.horizontal, 12)
                 .padding(.bottom, 5)
+
+            if let held = model.approvals.current {
+                ApprovalCard(request: held, hovered: model.hoveredApproval)
+            }
 
             if model.visibleSessions.isEmpty {
                 Text(model.staleCount > 0 ? "Nothing needs you" : "No live sessions")

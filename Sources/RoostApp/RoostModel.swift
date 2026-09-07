@@ -7,6 +7,10 @@ final class RoostModel {
     var sessions: [Session] = []
     var isExpanded = false
     var hoveredIndex: Int?
+    var hoveredApproval: IslandGeometry.ApprovalHit?
+
+    /// Tool calls held by the hook, waiting for an answer.
+    let approvals = ApprovalCenter()
 
     /// Set by the debug menu to force a state while detection is being tuned.
     var previewOverride: PreviewOverride?
@@ -16,6 +20,14 @@ final class RoostModel {
         var tier: EscalationTier
         var blockedCount: Int
         var face: MascotFace
+    }
+
+    /// A held tool call keeps the panel open: it is not something to answer
+    /// only while the cursor happens to be on the notch.
+    var showsPanel: Bool { isExpanded || approvals.current != nil }
+
+    func permissionMode(for sessionId: String) -> String? {
+        sessions.first { $0.id == sessionId }?.permissionMode
     }
 
     private let scanner = SessionScanner()
@@ -30,6 +42,8 @@ final class RoostModel {
     /// belonging to the loudest session.
     var face: MascotFace {
         if let previewOverride { return previewOverride.face }
+        // Something is held at the gate: that is the loudest fact there is.
+        if approvals.current != nil { return .waiting }
         switch level {
         case .dormant: return .idle
         case .running: return .running
@@ -74,6 +88,7 @@ final class RoostModel {
                 guard let self else { return }
                 let scanned = await self.scanner.scan()
                 self.sessions = scanned
+                self.approvals.expireStale()
                 // A stalled tool crosses the grace line without anything being
                 // written, so state can change with no file event to react to.
                 try? await Task.sleep(for: .seconds(2))

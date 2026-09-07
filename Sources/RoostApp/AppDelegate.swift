@@ -6,12 +6,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = RoostModel()
     private lazy var notch = NotchWindowController(model: model)
     private lazy var menu = buildMenu()
+    private lazy var approvals = ApprovalServer { [model] request in
+        await model.approvals.handle(request)
+    }
+    private var approvalItem: NSMenuItem?
     private var hitSyncTask: Task<Void, Never>?
+
+    /// The hook binary rides inside the app bundle, so enabling approvals is
+    /// one settings entry and no install step of its own.
+    private static var hookCommand: String {
+        Bundle.main.bundleURL.appending(path: "Contents/MacOS/roost-hook").path
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApplication.shared.setActivationPolicy(.accessory)
         notch.start()
         model.startRefreshing()
+        model.approvals.permissionMode = { [weak model] in model?.permissionMode(for: $0) }
+        approvals.start()
 
         // No menu bar item: another icon up there is exactly the clutter this
         // app exists to avoid, and the island is already a target. Right-click
@@ -34,6 +46,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.delegate = self
+        let approvals = NSMenuItem(title: "Answer permission prompts here",
+                                   action: #selector(toggleApprovals), keyEquivalent: "")
+        approvals.target = self
+        approvals.toolTip = "Adds a PreToolUse hook to ~/.claude/settings.json"
+        menu.addItem(approvals)
+        approvalItem = approvals
+        menu.addItem(.separator())
         menu.addItem(previewItem("Live detection", nil))
         menu.addItem(.separator())
         // Forced states, so the visual design can be judged before the
@@ -63,8 +83,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notch.syncHitRect()
     }
 
+    /// Writes the hook into the user's own settings file, and takes it back
+    /// out again. Additive both ways: hooks that are not ours are untouched.
+    @objc private func toggleApprovals() {
+        let command = Self.hookCommand
+        let settings = HookInstall.read()
+        let updated = HookInstall.isInstalled(settings, command: command)
+            ? HookInstall.removing(command: command, from: settings)
+            : HookInstall.adding(command: command, to: settings)
+        try? HookInstall.write(updated)
+    }
+
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
+    }
+}
+
+extension AppDelegate: NSMenuDelegate {
+    func menuWillOpen(_ menu: NSMenu) {
+        approvalItem?.state = HookInstall.isInstalled(HookInstall.read(), command: Self.hookCommand)
+            ? .on : .off
     }
 }
 

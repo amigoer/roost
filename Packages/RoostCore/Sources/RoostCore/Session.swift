@@ -7,12 +7,20 @@ public struct Session: Sendable, Identifiable, Hashable {
     public let name: String
     public let cwd: String
     public let entrypoint: String?
+    /// The desktop app's id for this session, when it started there. The only
+    /// handle its deep links accept, so without it a click can do no better
+    /// than raise the app.
+    public let desktopId: String?
+    /// Model the session is running, short form.
+    public let model: String?
     public let startedAt: Date
     public var state: SessionState
     /// When the session entered its current state, for escalation timing.
     public var stateSince: Date
     /// Short hint about what it is doing, e.g. a tool name.
     public var activity: String?
+    /// What that tool is working on: the command, the file, the pattern.
+    public var detail: String?
     /// Last semantic line in the transcript. A `done` session is not a finished
     /// one: the process stays alive, so this is what separates a conversation
     /// you just replied in from one you abandoned days ago.
@@ -34,17 +42,21 @@ public struct Session: Sendable, Identifiable, Hashable {
     }
 
     public init(id: String, pid: pid_t, name: String, cwd: String, entrypoint: String?,
+                desktopId: String? = nil, model: String? = nil,
                 startedAt: Date, state: SessionState, stateSince: Date,
-                activity: String?, lastActivityAt: Date) {
+                activity: String?, detail: String? = nil, lastActivityAt: Date) {
         self.id = id
         self.pid = pid
         self.name = name
         self.cwd = cwd
         self.entrypoint = entrypoint
+        self.desktopId = desktopId
+        self.model = model
         self.startedAt = startedAt
         self.state = state
         self.stateSince = stateSince
         self.activity = activity
+        self.detail = detail
         self.lastActivityAt = lastActivityAt
     }
 }

@@ -10,12 +10,12 @@ public actor SessionScanner {
         var facts: TranscriptReader.Facts
     }
 
-    /// Titles live in a couple of hundred files that almost never change, so
-    /// re-reading them on every scan was measurable CPU for nothing.
-    private static let titleRefreshInterval: TimeInterval = 30
+    /// The desktop store is a couple of hundred files that almost never
+    /// change, so re-reading them on every scan was measurable CPU for nothing.
+    private static let desktopRefreshInterval: TimeInterval = 30
 
-    private var titles: [String: String] = [:]
-    private var titlesReadAt: Date = .distantPast
+    private var desktop: [String: DesktopSession] = [:]
+    private var desktopReadAt: Date = .distantPast
     private var transcriptCache: [String: Cached] = [:]
     private var stateSince: [String: Date] = [:]
     private var lastStates: [String: SessionState] = [:]
@@ -24,7 +24,7 @@ public actor SessionScanner {
 
     public func scan(now: Date = Date()) -> [Session] {
         let entries = SessionRegistry.liveEntries()
-        refreshTitlesIfStale(now: now)
+        refreshDesktopIfStale(now: now)
         var live = Set<String>()
         var sessions: [Session] = []
 
@@ -38,18 +38,22 @@ public actor SessionScanner {
                 stateSince[entry.sessionId] = reading?.waitingSince ?? now
             }
 
+            let known = desktop[entry.sessionId]
             sessions.append(Session(
                 id: entry.sessionId,
                 pid: entry.pid,
-                name: titles[entry.sessionId]
+                name: known?.title
                     ?? entry.name
                     ?? URL(fileURLWithPath: entry.cwd).lastPathComponent,
                 cwd: entry.cwd,
                 entrypoint: entry.entrypoint,
+                desktopId: known?.id,
+                model: known?.modelLabel,
                 startedAt: entry.startedAt,
                 state: state,
                 stateSince: stateSince[entry.sessionId] ?? now,
                 activity: reading?.activity,
+                detail: reading?.detail,
                 lastActivityAt: reading?.lastActivityAt ?? entry.startedAt
             ))
         }
@@ -66,10 +70,10 @@ public actor SessionScanner {
         }
     }
 
-    private func refreshTitlesIfStale(now: Date) {
-        guard now.timeIntervalSince(titlesReadAt) >= Self.titleRefreshInterval else { return }
-        titles = DesktopTitles.byCLISessionId()
-        titlesReadAt = now
+    private func refreshDesktopIfStale(now: Date) {
+        guard now.timeIntervalSince(desktopReadAt) >= Self.desktopRefreshInterval else { return }
+        desktop = DesktopSessions.byCLISessionId()
+        desktopReadAt = now
     }
 
     /// Parses only when the transcript actually changed. State is still

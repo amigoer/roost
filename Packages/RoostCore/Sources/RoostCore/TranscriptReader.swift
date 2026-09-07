@@ -38,15 +38,19 @@ public enum TranscriptReader {
     /// transcript on a timer to notice that was the app's largest cost.
     public struct Facts: Sendable {
         public var pendingTool: String?
+        public var pendingDetail: String?
         public var pendingSince: Date?
         public var lastStopReason: String?
         public var lastToolName: String?
+        public var lastDetail: String?
         public var lastActivityAt: Date
     }
 
     public struct Reading: Sendable {
         public var state: SessionState
         public var activity: String?
+        /// What that tool is working on: the command, the file, the pattern.
+        public var detail: String?
         public var lastActivityAt: Date
         /// When the agent actually stopped, taken from the dangling tool call's
         /// own timestamp. Without this the elapsed time would start counting
@@ -66,33 +70,35 @@ public enum TranscriptReader {
             let since = facts.pendingSince ?? facts.lastActivityAt
             if humanOnlyTools.contains(tool) {
                 let reason: BlockReason = tool == "AskUserQuestion" ? .question : .planApproval
-                return Reading(state: .blocked(reason), activity: tool,
+                return Reading(state: .blocked(reason), activity: tool, detail: facts.pendingDetail,
                                lastActivityAt: facts.lastActivityAt, waitingSince: since)
             }
             if now.timeIntervalSince(since) >= stallGrace {
                 return Reading(state: .blocked(.stalledTool(name: tool)), activity: tool,
+                               detail: facts.pendingDetail,
                                lastActivityAt: facts.lastActivityAt, waitingSince: since)
             }
-            return Reading(state: .running, activity: tool,
+            return Reading(state: .running, activity: tool, detail: facts.pendingDetail,
                            lastActivityAt: facts.lastActivityAt, waitingSince: nil)
         }
 
         if facts.lastStopReason == "end_turn" {
-            return Reading(state: .done, activity: nil,
+            return Reading(state: .done, activity: nil, detail: nil,
                            lastActivityAt: facts.lastActivityAt, waitingSince: nil)
         }
-        return Reading(state: .running, activity: facts.lastToolName,
+        return Reading(state: .running, activity: facts.lastToolName, detail: facts.lastDetail,
                        lastActivityAt: facts.lastActivityAt, waitingSince: nil)
     }
 
     public static func facts(url: URL) -> Facts? {
         guard let lines = tailLines(of: url) else { return nil }
 
-        var toolUses: [String: (name: String, at: Date?)] = [:]
+        var toolUses: [String: (name: String, at: Date?, detail: String?)] = [:]
         var toolResults = Set<String>()
         var lastSemanticStop: String?
         var lastSemanticAt: Date?
         var lastToolName: String?
+        var lastDetail: String?
 
         for line in lines {
             guard let data = line.data(using: .utf8),
@@ -115,8 +121,10 @@ public enum TranscriptReader {
                 case "tool_use":
                     if let id = block["id"] as? String {
                         let name = (block["name"] as? String) ?? "tool"
-                        toolUses[id] = (name, timestamp)
+                        let detail = Self.detail(from: block["input"] as? [String: Any])
+                        toolUses[id] = (name, timestamp, detail)
                         lastToolName = name
+                        lastDetail = detail
                     }
                 case "tool_result":
                     if let id = block["tool_use_id"] as? String { toolResults.insert(id) }
@@ -132,10 +140,39 @@ public enum TranscriptReader {
         let dangling = toolUses.first { !toolResults.contains($0.key) }
 
         return Facts(pendingTool: dangling?.value.name,
+                     pendingDetail: dangling?.value.detail,
                      pendingSince: dangling?.value.at,
                      lastStopReason: lastSemanticStop,
                      lastToolName: lastToolName,
+                     lastDetail: lastDetail,
                      lastActivityAt: lastActivity)
+    }
+
+    /// Arguments worth showing, in the order a person would want them. Keyed by
+    /// argument rather than by tool name so MCP and plugin tools, whose names
+    /// nobody can enumerate, still say something useful.
+    static let detailKeys = ["command", "file_path", "pattern", "query", "url",
+                             "description", "path", "skill", "prompt"]
+
+    /// A one-line hint of what a tool call is actually doing. Without it every
+    /// busy session reads "running Bash", which says nothing about which one to
+    /// go look at.
+    static func detail(from input: [String: Any]?) -> String? {
+        guard let input else { return nil }
+        for key in detailKeys {
+            guard let raw = input[key] as? String else { continue }
+            let isPath = key == "file_path" || key == "path"
+            return condensed(isPath ? URL(fileURLWithPath: raw).lastPathComponent : raw)
+        }
+        return nil
+    }
+
+    /// First line only, cut to what a row can hold.
+    static func condensed(_ value: String, limit: Int = 44) -> String? {
+        let line = value.split(whereSeparator: \.isNewline).first?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        guard !line.isEmpty else { return nil }
+        return line.count <= limit ? line : line.prefix(limit - 1) + "…"
     }
 
     // Value-type format styles, unlike ISO8601DateFormatter, are Sendable.

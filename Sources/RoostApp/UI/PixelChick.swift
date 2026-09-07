@@ -144,7 +144,7 @@ enum PixelChick {
     /// Draw order. Tokens never overlap, so this is only for determinism.
     static func inks(_ face: MascotFace) -> [(token: Character, colour: NSColor)] {
         [("B", face.bodyColour), ("K", face.beakColour), ("E", Brand.eye),
-         ("S", Brand.sweat), ("A", face.badgeColour)]
+         ("S", Brand.cyan), ("A", face.badgeColour)]
     }
 
     /// A flat image of one face, for the menu bar item.
@@ -167,17 +167,34 @@ enum PixelChick {
 }
 
 extension MascotFace {
-    var bodyColour: NSColor { self == .idle ? Brand.idleBody : Brand.orange }
+    /// The state's colour. Worn by the body, the badge, and any text that is
+    /// talking about the same session, so one hue answers "what is going on"
+    /// before any glyph has to be read.
+    var colour: NSColor {
+        switch self {
+        // Cool and receding: work in progress is the least of your worries.
+        case .running: Brand.cyan
+        // Warm and advancing. Brand orange is spent here and nowhere else,
+        // because this is the one state the app exists for.
+        case .waiting: Brand.orange
+        case .stalled, .error: Brand.red
+        case .done: Brand.green
+        case .idle: Brand.idleBody
+        }
+    }
 
+    var bodyColour: NSColor { colour }
+
+    /// Beak and feet stay brand orange whatever the body is doing: hue is the
+    /// state, but the silhouette and that orange beak are the identity.
     var beakColour: NSColor { self == .idle ? Brand.idleBeak : Brand.beak }
 
     var badgeColour: NSColor {
         switch self {
         case .running: .clear
-        case .waiting: Brand.orange
-        case .stalled, .error: Brand.red
-        case .done: Brand.green
+        // A shade lighter than the grey body, so the z still reads.
         case .idle: Brand.idleBadge
+        case .waiting, .stalled, .done, .error: colour
         }
     }
 }

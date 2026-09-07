@@ -117,7 +117,7 @@ struct IslandView: View {
                 if model.blockedCount > 0 {
                     Text("\(model.blockedCount) waiting")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Brand.accent)
+                        .foregroundStyle(model.face.colour.swiftUI)
                 } else {
                     Text("\(model.visibleSessions.count)")
                         .font(.system(size: 10.5, weight: .medium, design: .rounded))

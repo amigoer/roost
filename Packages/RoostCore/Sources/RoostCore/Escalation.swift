@@ -4,8 +4,8 @@ import Foundation
 ///
 /// Peripheral-display research is clear that animation *frequency* is what
 /// disrupts a primary task, so the badge blinks at one rate whatever the tier
-/// and escalation rides on the island's width instead. The mascot's body stays
-/// brand orange throughout: hue is identity here, not urgency.
+/// and escalation rides on the island's width instead. Hue is already spoken
+/// for: it says which state the session is in, not how long it has been there.
 public enum EscalationTier: Int, Sendable, Hashable, Comparable, CaseIterable {
     /// Base width.
     case calm = 0

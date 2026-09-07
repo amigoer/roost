@@ -90,7 +90,7 @@ final class MascotNSView: NSView {
         eyes.path = PixelChick.path("E", face: face, cell: cell)
         eyes.fillColor = Brand.eye.cgColor
         sweat.path = PixelChick.path("S", face: face, cell: cell)
-        sweat.fillColor = Brand.sweat.cgColor
+        sweat.fillColor = Brand.cyan.cgColor
         badge.path = PixelChick.path("A", face: face, cell: cell)
         badge.fillColor = face.badgeColour.cgColor
         badge.opacity = 1

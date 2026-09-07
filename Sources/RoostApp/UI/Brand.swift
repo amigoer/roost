@@ -3,8 +3,9 @@ import SwiftUI
 
 /// The palette from the mascot design sheet.
 ///
-/// The chick's body is brand orange in every live state and grey only when
-/// idle: state is carried by the face and the corner badge, never by the hue.
+/// The body wears the state's colour and the beak stays brand orange, so the
+/// state is readable at notch size from hue alone and the silhouette still
+/// says whose app it is.
 ///
 /// Computed rather than stored because `NSColor` is not `Sendable`, so a
 /// `static let` would not survive strict concurrency checking. `NSColor` for
@@ -15,13 +16,12 @@ enum Brand {
     static var eye: NSColor { hex(0x1C1206) }
     static var green: NSColor { hex(0x30D158) }
     static var red: NSColor { hex(0xFF453A) }
-    static var sweat: NSColor { hex(0x64D2FF) }
+    static var cyan: NSColor { hex(0x64D2FF) }
 
     static var idleBody: NSColor { hex(0x8E8E93) }
     static var idleBeak: NSColor { hex(0x6F7076) }
     static var idleBadge: NSColor { hex(0x9A9CA3) }
 
-    static var accent: Color { orange.swiftUI }
     static var textPrimary: Color { hex(0xF2F2F4).swiftUI }
     static var textSecondary: Color { hex(0x9A9CA3).swiftUI }
     static var textTertiary: Color { hex(0x7F818A).swiftUI }

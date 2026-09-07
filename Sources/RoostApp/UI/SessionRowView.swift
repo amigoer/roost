@@ -30,10 +30,11 @@ struct SessionRowView: View {
 
             if isBlocked {
                 // How long it has been stuck is the one number worth reading
-                // here, so it gets the accent and nothing else does.
+                // here, and it agrees with the mascot's colour so the row reads
+                // as one object rather than two.
                 Text(elapsed)
                     .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Brand.accent)
+                    .foregroundStyle(session.state.face.colour.swiftUI)
                     .monospacedDigit()
             } else if isHovered {
                 Image(systemName: "arrow.up.forward")

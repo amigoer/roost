@@ -33,14 +33,15 @@ happening? The notch stays the notch. Something needs you? It grows.
 
 ## The chick
 
-One mascot, six faces, on a 15×12 pixel grid. The body is brand orange in every
-live state and grey only when idle, so hue is always identity — never urgency.
-State is carried by the eyes and by a badge in the top-right corner.
+One mascot, six faces, on a 15×12 pixel grid. The body wears the state's colour,
+so a glance answers *what is going on* before any glyph has to be read; the
+silhouette and the orange beak carry the identity. The eyes and the badge in the
+top-right corner say exactly which state it is.
 
 | | State | Badge | What it means |
 |:--:|:--|:--:|:--|
-| <img src="docs/mascot/running.png" width="52"> | `running` | — | Producing output or running a tool. Hops one pixel, once per second. |
-| <img src="docs/mascot/waiting.png" width="52"> | `waiting` | amber **?** | Stopped on something only you can answer: a question, a plan, a permission prompt. |
+| <img src="docs/mascot/running.png" width="52"> | `running` | blue, no badge | Producing output or running a tool. Cool and receding, because work in progress is the least of your worries. Hops one pixel, once per second. |
+| <img src="docs/mascot/waiting.png" width="52"> | `waiting` | orange **?** | Stopped on something only you can answer: a question, a plan, a permission prompt. Brand orange is spent here and nowhere else. |
 | <img src="docs/mascot/stalled.png" width="52"> | `stalled` | red **!** | A tool call has been outstanding past the grace period. |
 | <img src="docs/mascot/done.png" width="52"> | `done` | green **✓** | The turn ended. Nothing is burning. |
 | <img src="docs/mascot/error.png" width="52"> | `error` | red **✕** | Something failed. |
@@ -86,7 +87,9 @@ The code enforces these, and the comments say so:
 
 1. **Only blocked grows.** A change of shape at the notch carries exactly one
    meaning and never has to be interpreted.
-2. **Hue is identity.** The body never changes colour to signal urgency.
+2. **Hue is the state, the silhouette is the identity.** One colour per state,
+   never a gradient of urgency within one; the pixel outline and the orange beak
+   are what stay constant.
 3. **Nothing is drawn in the cutout.** The camera's rectangle is reserved, always.
 4. **Clicks meant for the menu bar are never swallowed.** The panel ignores mouse
    events entirely; hover and clicks come from a global monitor against a hit rect.

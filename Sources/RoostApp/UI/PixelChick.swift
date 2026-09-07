@@ -1,0 +1,196 @@
+import AppKit
+import RoostCore
+
+/// What the chick's face is saying.
+enum MascotFace: String, CaseIterable, Sendable {
+    /// Working: plain eyes, no badge, a one-pixel hop.
+    case running
+    /// Stopped on something only a person can answer: wide eyes, amber "?".
+    case waiting
+    /// A tool that will not finish: squint, sweat drop, red "!".
+    case stalled
+    /// Turn ended: happy eyes, green tick.
+    case done
+    /// Something failed: crossed eyes, red "x".
+    case error
+    /// Nothing to report: closed eyes, grey "z", grey body.
+    case idle
+}
+
+/// The mascot art, drawn from an editable grid.
+///
+/// Each face is 15x12 cells: the chick fills the left 11 columns and the badge
+/// sits in the top-right corner, so the body stays put from face to face and
+/// only the corner changes. `B` body, `K` beak and feet, `E` eye, `A` badge,
+/// `S` sweat drop, `.` transparent.
+enum PixelChick {
+    static let columns = 15
+    static let rows = 12
+    /// A spare row above the grid, so the running hop has somewhere to go.
+    static let hopRoom = 1
+
+    static func grid(_ face: MascotFace) -> [String] {
+        switch face {
+        case .running:
+            [
+                "...BBBBB.......",
+                "..BBBBBBB......",
+                ".BBBBBBBBB.....",
+                ".BBEBBBEBB.....",
+                "BBBEBKBEBBB....",
+                "BBBBBKBBBBB....",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
+        case .waiting:
+            [
+                "...BBBBB...AAA.",
+                "..BBBBBBB....A.",
+                ".BBBBBBBBB..A..",
+                ".BEEBBBEEB..A..",
+                "BBEEBKBEEBB....",
+                "BBBBBKBBBBB.A..",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
+        case .stalled:
+            [
+                "...BBBBB....A..",
+                "..BBBBBBB...A..",
+                ".BBBBBBBBBS.A..",
+                ".BBBBBBBBBS.A..",
+                "BBBEBKBEBBB....",
+                "BBBBBKBBBBB.A..",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
+        case .done:
+            [
+                "...BBBBB.......",
+                "..BBBBBBB.....A",
+                ".BBBBBBBBB...A.",
+                ".BBEBBBEBBA.A..",
+                "BBEBEKEBEBBA...",
+                "BBBBBKBBBBB....",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
+        case .error:
+            [
+                "...BBBBB...A.A.",
+                "..BBBBBBB...A..",
+                ".BBBBBBBBB.A.A.",
+                ".BEBBBBBEB.....",
+                "BBBEBKBEBBB....",
+                "BBBBBKBBBBB....",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
+        case .idle:
+            [
+                "...BBBBB...AAA.",
+                "..BBBBBBB...A..",
+                ".BBBBBBBBB.AAA.",
+                ".BBBBBBBBB.....",
+                "BBEEBKBEEBB....",
+                "BBBBBKBBBBB....",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
+        }
+    }
+
+    /// Cells of one kind, as a path of square pixels.
+    static func path(_ token: Character, face: MascotFace,
+                     cell: CGFloat, origin: CGPoint = .zero) -> CGPath {
+        let path = CGMutablePath()
+        for (rowIndex, row) in grid(face).enumerated() {
+            for (columnIndex, character) in row.enumerated() where character == token {
+                // Grid rows read top-down; AppKit layers are bottom-up.
+                let flipped = rows - 1 - rowIndex
+                path.addRect(CGRect(x: origin.x + CGFloat(columnIndex) * cell,
+                                    y: origin.y + CGFloat(flipped) * cell,
+                                    width: cell,
+                                    height: cell))
+            }
+        }
+        return path
+    }
+
+    /// Draw order. Tokens never overlap, so this is only for determinism.
+    static func inks(_ face: MascotFace) -> [(token: Character, colour: NSColor)] {
+        [("B", face.bodyColour), ("K", face.beakColour), ("E", Brand.eye),
+         ("S", Brand.sweat), ("A", face.badgeColour)]
+    }
+
+    /// A flat image of one face, for the menu bar item.
+    static func image(_ face: MascotFace, cell: CGFloat) -> NSImage {
+        let size = NSSize(width: CGFloat(columns) * cell, height: CGFloat(rows) * cell)
+        let image = NSImage(size: size, flipped: false) { _ in
+            guard let context = NSGraphicsContext.current?.cgContext else { return false }
+            for ink in inks(face) {
+                context.addPath(path(ink.token, face: face, cell: cell))
+                context.setFillColor(ink.colour.cgColor)
+                context.fillPath()
+            }
+            return true
+        }
+        // Brand orange is the point of the mark, so it must not be flattened
+        // into the menu bar's tint.
+        image.isTemplate = false
+        return image
+    }
+}
+
+extension MascotFace {
+    var bodyColour: NSColor { self == .idle ? Brand.idleBody : Brand.orange }
+
+    var beakColour: NSColor { self == .idle ? Brand.idleBeak : Brand.beak }
+
+    var badgeColour: NSColor {
+        switch self {
+        case .running: .clear
+        case .waiting: Brand.orange
+        case .stalled, .error: Brand.red
+        case .done: Brand.green
+        case .idle: Brand.idleBadge
+        }
+    }
+}
+
+extension SessionState {
+    /// How one session wears the mark.
+    var face: MascotFace {
+        switch self {
+        case .running: .running
+        case .done: .done
+        // A prompt only a person can answer is a different kind of stop from a
+        // tool that will not finish, and the badge is where that difference shows.
+        case .blocked(let reason): reason.isImmediate ? .waiting : .stalled
+        }
+    }
+}

@@ -13,6 +13,7 @@ A macOS menu-bar companion that answers one question from the corner of your eye
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
 <img src="https://img.shields.io/badge/read--only-no%20hooks%2C%20no%20network-30D158?style=flat-square" alt="Read-only">
+<img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
 
 **English** · [简体中文](README.zh-CN.md)
 
@@ -144,3 +145,7 @@ can be judged without waiting for a real session to produce it.
 ## Status
 
 Early. It runs, it detects, it has not been packaged or signed for distribution.
+
+## License
+
+[MIT](LICENSE)

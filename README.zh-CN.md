@@ -13,6 +13,7 @@
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
 <img src="https://img.shields.io/badge/%E5%8F%AA%E8%AF%BB-%E6%97%A0%20hook%20%C2%B7%20%E6%97%A0%E7%BD%91%E7%BB%9C-30D158?style=flat-square" alt="只读">
+<img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
 
 [English](README.md) · **简体中文**
 
@@ -132,3 +133,7 @@ waiting、stalled、error 以及升级后的变体——这样不必等真实会
 ## 项目状态
 
 早期阶段。能跑、能检测，但还没有做分发打包和签名。
+
+## 许可证
+
+[MIT](LICENSE)

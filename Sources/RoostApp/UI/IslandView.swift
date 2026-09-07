@@ -113,20 +113,24 @@ struct IslandView: View {
 
             Color.clear.frame(width: notchSize.width)
 
-            Group {
-                if model.blockedCount > 0 {
-                    Text("\(model.blockedCount) waiting")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(model.face.colour.swiftUI)
-                } else {
-                    Text("\(model.visibleSessions.count)")
-                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                        .foregroundStyle(Brand.textTertiary)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .trailing)
+            headline
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .frame(height: notchSize.height)
+    }
+
+    /// One line for the whole fleet, loudest fact first.
+    @ViewBuilder
+    private var headline: some View {
+        if model.blockedCount > 0 {
+            Text("\(model.blockedCount) waiting").foregroundStyle(model.face.colour.swiftUI)
+        } else if model.runningCount > 0 {
+            Text("\(model.runningCount) running").foregroundStyle(MascotFace.running.colour.swiftUI)
+        } else {
+            Text("\(model.visibleSessions.count) session\(model.visibleSessions.count == 1 ? "" : "s")")
+                .foregroundStyle(Brand.textTertiary)
+        }
     }
 }

@@ -55,6 +55,10 @@ final class RoostModel {
 
     var staleCount: Int { sessions.count - visibleSessions.count }
 
+    var runningCount: Int {
+        visibleSessions.count { if case .running = $0.state { true } else { false } }
+    }
+
     var blockedSessions: [Session] {
         sessions.filter { if case .blocked = $0.state { true } else { false } }
     }

@@ -140,30 +140,6 @@ enum PixelChick {
         }
         return path
     }
-
-    /// Draw order. Tokens never overlap, so this is only for determinism.
-    static func inks(_ face: MascotFace) -> [(token: Character, colour: NSColor)] {
-        [("B", face.bodyColour), ("K", face.beakColour), ("E", Brand.eye),
-         ("S", Brand.cyan), ("A", face.badgeColour)]
-    }
-
-    /// A flat image of one face, for the menu bar item.
-    static func image(_ face: MascotFace, cell: CGFloat) -> NSImage {
-        let size = NSSize(width: CGFloat(columns) * cell, height: CGFloat(rows) * cell)
-        let image = NSImage(size: size, flipped: false) { _ in
-            guard let context = NSGraphicsContext.current?.cgContext else { return false }
-            for ink in inks(face) {
-                context.addPath(path(ink.token, face: face, cell: cell))
-                context.setFillColor(ink.colour.cgColor)
-                context.fillPath()
-            }
-            return true
-        }
-        // Brand orange is the point of the mark, so it must not be flattened
-        // into the menu bar's tint.
-        image.isTemplate = false
-        return image
-    }
 }
 
 extension MascotFace {

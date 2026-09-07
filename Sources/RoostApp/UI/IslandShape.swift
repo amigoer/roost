@@ -27,7 +27,7 @@ struct IslandShape: Shape {
 /// peripheral vision in a way a colour change is not, so only `blocked` earns
 /// it: running and done stay at cutout size and just flank it with the mark.
 enum IslandGeometry {
-    static let expandedWidth: CGFloat = 420
+    static let expandedWidth: CGFloat = 470
 
     /// Vertical gap between the island's top and the first row, i.e. the header.
     static func rowsTopInset(notch: CGSize) -> CGFloat { notch.height + 6 }

@@ -1,46 +1,40 @@
 import SwiftUI
 import RoostCore
 
+/// One session: whose it is, which conversation, what it is doing right now,
+/// how it is doing, and for how long.
 struct SessionRowView: View {
     let session: Session
     let isHovered: Bool
 
     var body: some View {
-        HStack(spacing: 9) {
-            MascotView(face: session.state.face, cell: MascotView.small)
+        HStack(spacing: 10) {
+            AgentMarkView()
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(session.name)
-                    .font(.system(size: 12.5, weight: isBlocked ? .semibold : .medium))
-                    .foregroundStyle(Brand.textPrimary.opacity(nameOpacity))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                HStack(spacing: 5) {
-                    Text(session.projectName)
-                    Text("·").opacity(0.6)
-                    Text(statusText)
-                }
-                .font(.system(size: 10.5))
-                .foregroundStyle(Brand.textSecondary)
-                .lineLimit(1)
+                title
+                activity
             }
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 8)
 
-            if isBlocked {
-                // How long it has been stuck is the one number worth reading
-                // here, and it agrees with the mascot's colour so the row reads
-                // as one object rather than two.
-                Text(elapsed)
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(session.state.face.colour.swiftUI)
-                    .monospacedDigit()
-            } else if isHovered {
-                Image(systemName: "arrow.up.forward")
-                    .font(.system(size: 9, weight: .semibold))
+            if let model = session.model {
+                Text(model)
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(Brand.textTertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1.5)
+                    .background(Capsule().fill(.white.opacity(0.06)))
+                    .fixedSize()
             }
+
+            MascotView(face: face, cell: MascotView.small)
+
+            Text(elapsed)
+                .font(.system(size: 10.5, weight: isBlocked ? .semibold : .regular, design: .rounded))
+                .foregroundStyle(isBlocked ? face.colour.swiftUI : Brand.textTertiary)
+                .monospacedDigit()
+                .frame(minWidth: 34, alignment: .trailing)
         }
         .padding(.leading, 12)
         .padding(.trailing, 14)
@@ -51,6 +45,39 @@ struct SessionRowView: View {
                 .padding(.horizontal, 6)
         )
     }
+
+    /// Project first: which repo it is answers "do I care" faster than the
+    /// conversation's own title does.
+    private var title: some View {
+        (Text(session.projectName).foregroundStyle(Brand.textSecondary)
+            + Text(" · ").foregroundStyle(Brand.textSecondary.opacity(0.5))
+            + Text(session.name).foregroundStyle(Brand.textPrimary.opacity(nameOpacity)))
+            .font(.system(size: 12, weight: isBlocked ? .semibold : .medium))
+            .lineLimit(1)
+            .truncationMode(.middle)
+    }
+
+    /// What it is doing, in the session's own words: the tool and the argument
+    /// a person would recognise.
+    private var activity: some View {
+        HStack(spacing: 6) {
+            if let lede {
+                Text(lede)
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(face.colour.swiftUI)
+                    .fixedSize()
+            }
+            if let trail = session.detail ?? fallbackTrail {
+                Text(trail)
+                    .font(.system(size: 10.5, design: lede == nil ? .default : .monospaced))
+                    .foregroundStyle(Brand.textSecondary)
+            }
+        }
+        .lineLimit(1)
+        .truncationMode(.tail)
+    }
+
+    private var face: MascotFace { session.state.face }
 
     private var isBlocked: Bool {
         if case .blocked = session.state { true } else { false }
@@ -64,12 +91,17 @@ struct SessionRowView: View {
         }
     }
 
-    private var statusText: String {
+    private var lede: String? {
         switch session.state {
         case .blocked(let reason): label(for: reason)
-        case .running: session.activity.map { "running \($0)" } ?? "working"
-        case .done: "done"
+        case .running: session.activity ?? "working"
+        case .done: nil
         }
+    }
+
+    private var fallbackTrail: String? {
+        if case .done = session.state { return "turn ended" }
+        return nil
     }
 
     private func label(for reason: BlockReason) -> String {
@@ -82,11 +114,16 @@ struct SessionRowView: View {
         }
     }
 
+    /// Blocked rows count how long they have been stuck; everything else counts
+    /// how long since anything happened, which is what makes a stale one obvious.
     private var elapsed: String {
-        let seconds = Int(session.blockedFor)
-        if seconds < 60 { return "\(seconds)s" }
+        let seconds = Int(isBlocked ? session.blockedFor
+                                    : Date().timeIntervalSince(session.lastActivityAt))
+        if seconds < 60 { return "<1m" }
         let minutes = seconds / 60
-        if minutes < 60 { return "\(minutes)m\(String(format: "%02d", seconds % 60))s" }
-        return "\(minutes / 60)h\(String(format: "%02d", minutes % 60))m"
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return minutes % 60 == 0 ? "\(hours)h" : "\(hours)h\(String(format: "%02d", minutes % 60))m" }
+        return "\(hours / 24)d"
     }
 }

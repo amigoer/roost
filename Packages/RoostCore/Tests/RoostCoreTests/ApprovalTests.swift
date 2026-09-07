@@ -122,3 +122,65 @@ final class ApprovalGeometryTests: XCTestCase {
                                                 notch: notch, islandWidth: width))
     }
 }
+
+@MainActor
+final class ApprovalCenterTests: XCTestCase {
+    private func request(_ tool: String = "Bash") -> ApprovalRequest {
+        ApprovalRequest(sessionId: "s", cwd: "/x/perch", tool: tool, detail: "ls")
+    }
+
+    private func waitForCard(_ center: ApprovalCenter) async {
+        while center.pending.isEmpty { await Task.yield() }
+    }
+
+    func testAnsweringReleasesTheHeldCall() async {
+        let center = ApprovalCenter()
+        let held = request()
+        let reply = Task { await center.handle(held) }
+        await waitForCard(center)
+
+        center.decide(held.id, .allow)
+
+        let answer = await reply.value
+        XCTAssertEqual(answer.decision, .allow)
+        XCTAssertTrue(center.pending.isEmpty)
+    }
+
+    func testDenyingReleasesItToo() async {
+        let center = ApprovalCenter()
+        let held = request()
+        let reply = Task { await center.handle(held) }
+        await waitForCard(center)
+
+        center.decide(held.id, .deny)
+
+        let answer = await reply.value
+        XCTAssertEqual(answer.decision, .deny)
+    }
+
+    /// Nobody answered: the call goes back to the session's own prompt rather
+    /// than sitting on a card forever.
+    func testExpiryHandsTheCallBack() async {
+        let center = ApprovalCenter()
+        let stale = ApprovalRequest(sessionId: "s", cwd: "/x", tool: "Bash", detail: "ls",
+                                    receivedAt: Date().addingTimeInterval(-ApprovalSocket.timeout - 1))
+        let reply = Task { await center.handle(stale) }
+        await waitForCard(center)
+
+        center.expireStale()
+
+        let answer = await reply.value
+        XCTAssertEqual(answer.decision, .ask)
+        XCTAssertTrue(center.pending.isEmpty)
+    }
+
+    func testACallThatWouldNotPromptNeverBecomesACard() async {
+        let center = ApprovalCenter()
+        center.permissionMode = { _ in "acceptEdits" }
+
+        let answer = await center.handle(request("Edit"))
+
+        XCTAssertEqual(answer.decision, .ask)
+        XCTAssertTrue(center.pending.isEmpty)
+    }
+}

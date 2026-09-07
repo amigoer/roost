@@ -68,6 +68,12 @@ final class ApprovalServer: @unchecked Sendable {
     }
 
     private func serve(_ connection: Int32) {
+        // The hook gives up on its own schedule, so by the time an answer is
+        // ready its end may be long gone. Writing to that is routine here, and
+        // must not take the app down with SIGPIPE.
+        var on: Int32 = 1
+        setsockopt(connection, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+
         // The hook writes its request immediately; a connection that does not
         // is a bug or a stranger, and either way must not hold a task open.
         var window = timeval(tv_sec: 5, tv_usec: 0)

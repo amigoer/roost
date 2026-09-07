@@ -26,6 +26,18 @@ final class ApprovalGateTests: XCTestCase {
     }
 }
 
+final class ApprovalClientTests: XCTestCase {
+    /// The property everything else rests on: with nothing listening, the hook
+    /// gets no answer and the session prompts the way it always did.
+    func testNoServerMeansNoAnswer() {
+        let request = ApprovalRequest(sessionId: "s", cwd: "/tmp", tool: "Bash", detail: "ls")
+        let reply = ApprovalClient.ask(request,
+                                       path: "/tmp/roost-tests-nothing-here.sock",
+                                       timeout: 1)
+        XCTAssertNil(reply)
+    }
+}
+
 final class HookInstallTests: XCTestCase {
     private let command = "/Applications/Roost.app/Contents/MacOS/roost-hook"
 

@@ -1,0 +1,15 @@
+.DS_Store
+
+# XcodeGen output
+Roost.xcodeproj/
+
+# Build artifacts
+build/
+DerivedData/
+.build/
+*.xcuserstate
+xcuserdata/
+
+# SwiftPM
+.swiftpm/
+Package.resolved

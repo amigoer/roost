@@ -287,15 +287,16 @@ none of it should slow the sections above.
 
 Not engineering calls. Each one changes what is built.
 
-- [x] **Licence.** Settled: [PolyForm Noncommercial 1.0.0](../LICENSE), for
-      everything after v0.2.0. Free for personal and noncommercial use, and for
-      charities, schools, public research and government; use at a company
-      needs a separate licence. Two things it does not do. It does not reach
-      the releases up to v0.2.0 — those went out under MIT and stay MIT, so
-      that code can still be forked and sold by anyone who has it. And it does
-      not enforce itself: it is the legal footing for charging, not a
-      mechanism. Source-available, not open source, which is why the readme no
-      longer says otherwise.
+- [x] **Licence.** Settled: [Apache License 2.0](../LICENSE), for everything
+      after v0.2.0. Anyone may use, change and redistribute it, at home or at a
+      company, in open source or in something closed; what it asks back is the
+      notice, a copy of the licence, and a note of what changed. It also grants
+      a patent licence in so many words, which MIT leaves unsaid. Releases up
+      to v0.2.0 went out under MIT and stay MIT. Open source rather than
+      source-available — which means it is **not** a footing for charging for
+      use, and the price question below has to stand on something else:
+      hosting, a signed build, support, or a service around the app rather than
+      the app itself.
 - [!] **Price and the commerce around it.** Still open, and independent of
       everything else in this document. A price, per-Mac seats, a trial build,
       a licence key the app actually checks, a checkout, refunds, an add-a-Mac

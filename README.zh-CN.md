@@ -13,7 +13,7 @@
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
 <img src="https://img.shields.io/badge/%E4%BC%9A%E8%AF%9D%E6%95%B0%E6%8D%AE-%E4%B8%8D%E7%A6%BB%E5%BC%80%E4%BD%A0%E7%9A%84%20Mac-30D158?style=flat-square" alt="会话数据不离开你的 Mac">
-<img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
+<img src="https://img.shields.io/badge/license-PolyForm%20NC-64D2FF?style=flat-square" alt="PolyForm Noncommercial License">
 <a href="https://linux.do/u/amigoer"><img src="https://img.shields.io/badge/linux.do-%40amigoer-1c1206?style=flat-square&logo=discourse&logoColor=white" alt="linux.do @amigoer"></a>
 
 [English](README.md) · **简体中文**
@@ -310,4 +310,10 @@ Packages/RoostCore/
 
 ## 许可证
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE)。任何非商业用途都可以自由使用、修改、
+分发——个人项目、学习、业余作品；慈善机构、学校、公立科研单位和政府机构同样自由。
+
+在公司里使用，或者用于任何其他商业目的，需要另外的授权。写信到 <i@amigoer.com>。
+
+是 source-available 而不是开源：这份许可限制了软件可以被用来做什么，而开源定义
+不允许这种限制。v0.2.0 及以前的版本以 MIT 发布，那些版本仍然是 MIT。

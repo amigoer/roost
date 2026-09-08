@@ -13,7 +13,7 @@ A macOS menu-bar companion that answers one question from the corner of your eye
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
 <img src="https://img.shields.io/badge/your%20sessions-never%20leave%20your%20mac-30D158?style=flat-square" alt="Sessions never leave your Mac">
-<img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
+<img src="https://img.shields.io/badge/license-PolyForm%20NC-64D2FF?style=flat-square" alt="PolyForm Noncommercial License">
 <a href="https://linux.do/u/amigoer"><img src="https://img.shields.io/badge/linux.do-%40amigoer-1c1206?style=flat-square&logo=discourse&logoColor=white" alt="linux.do @amigoer"></a>
 
 **English** · [简体中文](README.zh-CN.md)
@@ -361,4 +361,13 @@ Early. It runs, it detects, it has not been packaged or signed for distribution.
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE). Use it, change it, share it, for any
+noncommercial purpose — personal projects, study, hobby work — and freely at
+charities, schools, public research bodies and government institutions.
+
+Using it at a company, or for anything else commercial, needs a separate
+licence. Ask at <i@amigoer.com>.
+
+Source-available rather than open source: the licence limits what the software
+may be used *for*, which the Open Source Definition does not allow. Releases up
+to v0.2.0 went out under the MIT licence and stay MIT, for those versions.

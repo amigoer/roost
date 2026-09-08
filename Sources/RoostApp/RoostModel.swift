@@ -87,7 +87,17 @@ final class RoostModel {
         Bundle.main.bundleURL.appending(path: "Contents/MacOS/roost-hook").path
     }
 
+    /// Read from the system rather than remembered: the user can switch a
+    /// login item off in System Settings, and this app would never hear.
+    private(set) var opensAtLogin = LoginItem.isEnabled
+
+    func setOpensAtLogin(_ on: Bool) {
+        LoginItem.set(on)
+        opensAtLogin = LoginItem.isEnabled
+    }
+
     func refreshHookState() {
+        opensAtLogin = LoginItem.isEnabled
         let settings = HookInstall.read()
         answersPrompts = HookInstall.isInstalled(settings, command: hookCommand)
         showsUsage = StatusLineInstall.isInstalled(settings, command: hookCommand)

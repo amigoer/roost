@@ -36,6 +36,14 @@ public struct Strings: Sendable, Hashable {
              "每六小时看一次公开的发布页面，除了这个请求本身什么都不发送。更新仍然由你手动安装。")
     }
 
+    public var openAtLogin: String { pick("Open at login", "开机时启动") }
+    public var loginNeedsApproval: String { pick("Blocked in System Settings", "已被系统设置拦截") }
+    public var openSystemSettings: String { pick("Open", "去打开") }
+    public var loginNote: String {
+        pick("A Roost that has not been launched is an invisible one: there is no Dock icon and no menu bar item to notice it missing by.",
+             "没启动的 Roost 是看不见的：它没有 Dock 图标，也没有菜单栏图标，少了也不会有人发现。")
+    }
+
     public var approvalsSection: String { pick("Approvals", "权限确认") }
     public var answerPrompts: String { pick("Answer permission prompts in the island", "在岛上回答权限确认") }
     public var approvalsNote: String {

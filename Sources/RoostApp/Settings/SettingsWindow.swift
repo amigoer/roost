@@ -48,7 +48,7 @@ struct SettingsView: View {
     /// Tall enough for English, which is the longer of the two languages here;
     /// Chinese leaves a few points of slack rather than resizing the window
     /// under the cursor when the language changes.
-    static let size = CGSize(width: 460, height: 806)
+    static let size = CGSize(width: 460, height: 872)
 
     @Bindable var model: RoostModel
     let retitle: (String) -> Void
@@ -70,10 +70,24 @@ struct SettingsView: View {
                 }
                 Toggle(strings.checkAutomatically, isOn: $model.checksForUpdates)
                     .toggleStyle(.switch)
+                if LoginItem.needsApproval {
+                    LabeledContent(strings.openAtLogin) {
+                        HStack(spacing: 8) {
+                            Text(strings.loginNeedsApproval).foregroundStyle(.secondary)
+                            Button(strings.openSystemSettings) { LoginItem.openSystemSettings() }
+                        }
+                    }
+                } else {
+                    Toggle(strings.openAtLogin, isOn: Binding(
+                        get: { model.opensAtLogin },
+                        set: { model.setOpensAtLogin($0) }
+                    ))
+                    .toggleStyle(.switch)
+                }
             } header: {
                 Text(strings.appSection)
             } footer: {
-                note(strings.updatesNote)
+                note("\(strings.updatesNote)\n\n\(strings.loginNote)")
             }
 
             Section {

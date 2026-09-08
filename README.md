@@ -48,6 +48,7 @@ top-right corner say exactly which state it is.
 | <img src="docs/mascot/done.png" width="52"> | `done` | green **✓** | The turn ended. Nothing is burning. |
 | <img src="docs/mascot/error.png" width="52"> | `error` | red **✕** | Something failed. |
 | <img src="docs/mascot/idle.png" width="52"> | `idle` | grey **z** | Left alone long enough to be clutter. Folded into a single footer line. |
+| <img src="docs/mascot/spent.png" width="52"> | `spent` | red **—** | A quota window has run out, and every session is stopped on something no session can fix. No new ink: grey already means nothing is moving and red already means it matters. |
 
 The same mark appears on the collapsed island and on every row of the expanded
 list, and the two never disagree. There is deliberately **no menu bar item** —
@@ -185,24 +186,50 @@ closed sends no `SessionEnd`.
 
 ### The usage windows
 
-The five-hour and seven-day figures reach a status line and nowhere else on the
-machine — not the transcripts, not the stats cache — so reading them means
-standing in that path. Under *Usage*, Roost installs a status line command that
-**wraps** whatever is already configured: the same payload goes to its stdin,
-its output is printed through unchanged, and the entry Roost writes carries it
-base64'd in its own arguments. Switching it back off restores the original
-exactly, from the settings file alone, whether or not Roost is running.
+Two switches, because there are two paths to the same two figures and they cost
+different things.
 
-Both windows show as bars along the footer. Only the five-hour one gets a
-countdown, and only once it is tight enough that *when it comes back* is the
-more useful number. A figure stops being shown fifteen minutes after the last
-report, because nothing writes a status line once the last session closes.
+A status line is the only place the numbers appear locally — not the
+transcripts, not the stats cache — so *Read the figure from your status line*
+installs a status line command that **wraps** whatever is already configured:
+the same payload goes to its stdin, its output is printed through unchanged,
+and the entry Roost writes carries the original base64'd in its own arguments.
+Switching it off restores that exactly, from the settings file alone, whether or
+not Roost is running. What it cannot do is report when nothing is drawing a
+status line — which is the desktop app, and any Mac between sessions.
 
-The one request Roost makes is an update check against GitHub's releases API,
-every six hours, sending nothing but the request itself. A newer version puts a
-dot on the gear and a line in the footer; installing it stays manual,
-because an ad-hoc signed build has no signature worth checking. Switch the check
-off under *Check automatically*.
+*Ask Anthropic what is left* covers that, and is the only thing Roost sends
+anywhere besides the update check. About once a minute it asks
+`api.anthropic.com` for your own account's figures, using the token Claude Code
+already keeps in your keychain. The token is read and never written: Claude Code
+owns that keychain item and rotates it on its own schedule, and two processes
+racing for one entry is a broken login for the sake of a number in a footer. An
+expired token is simply no credential, and the status line reading stands until
+Claude Code next rotates it. Nothing about your sessions goes with the request.
+It is off until you turn it on, and reading the token raises a keychain prompt
+the first time and again after an update.
+
+Both windows show as ten-cell tracks along the footer, drawn on the grid the
+chick is drawn on: the question is how many cells are left, and cells are
+countable where a bar is not. Hovering them spells the reset times out along the
+whole strip, with the per-model weeklies after them.
+
+A reading nothing has refreshed for a while is dimmed and dated rather than
+hidden. Someone opening the island to ask how much is left is worse served by
+nothing at all than by a number and the hour it was true, and a window whose
+reset has since passed says so rather than showing a figure that has moved on.
+
+Inside twenty percent of full, the window takes the header's headline off the
+count of what is running, because it is the thing that will stop all of it —
+and it says when it comes back rather than how much has gone. Spent, with work
+still on the machine, it grows the collapsed island, the chick wears the face
+above, and the countdown stands where the count would be.
+
+Besides that poll, the one request Roost makes is an update check against
+GitHub's releases API, every six hours, sending nothing but the request itself.
+A newer version puts a dot on the gear and a line in the footer; installing it
+stays manual, because an ad-hoc signed build has no signature worth checking.
+Switch the check off under *Check automatically*.
 
 ## Sound
 
@@ -287,8 +314,7 @@ Everything worth choosing lives here, each switch with the sentence that says
 what it actually does: whether to check for updates and whether to open at
 login, which language the interface speaks, whether to answer permission
 prompts from the island, whether to watch Codex as well, whether to say a state
-change out loud, and whether to stand in the status line path for the usage
-windows. It is also the way out — an accessory app has no Dock icon to quit
+change out loud, and which of the two paths to the usage windows to use. It is also the way out — an accessory app has no Dock icon to quit
 from.
 
 Every switch that touches a file writes it additively and takes it back out the

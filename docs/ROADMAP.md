@@ -22,10 +22,10 @@ not; see [Milestones](#milestones).
 |:--|:--|
 | Answer permission prompts from the island | done — `PermissionRequest` hook, `Approval.swift`, `ApprovalCard.swift` |
 | Answer questions and approve plans | done — `PreToolUse` on `AskUserQuestion` / `ExitPlanMode` |
-| Nothing leaves the machine | done — one update check against GitHub every six hours, nothing else |
+| What leaves the machine | an update check against GitHub every six hours; a usage poll to `api.anthropic.com` only while that switch is on, off by default |
 | Agents | 2 of 26 — Claude Code, Codex (`AgentKind.swift`) |
 | Click a row to reach the session | app-level only — `SessionActivator` raises the owning application, no tab or pane |
-| Usage windows | 5-hour and 7-day, Claude Code only — `Usage.swift`, `StatusLineInstall.swift` |
+| Usage windows | 5-hour, 7-day and per-model weeklies, Claude Code only — `Usage.swift`, `UsageAPI.swift`, `StatusLineInstall.swift` |
 | Displays without a notch | 185 pt stand-in strip — `NSScreen+Notch.swift` |
 | Two languages | done, switchable at runtime — `Strings.swift` |
 | Install | ad-hoc signed DMG, manual quarantine clearing |
@@ -197,10 +197,13 @@ surface is what it is, not what would be convenient.
 
 ## 3. Reaching you away from the Mac
 
-- [!] "Nothing leaves your machine" is currently true and is stated on the
-      badge in the readme. Anything that reaches a phone breaks it for whoever
-      turns it on. The honest version: default off, the endpoint is the user's
-      own, and the readme says exactly what is sent. Decide before building.
+- [x] "Nothing leaves your machine" was true when this was written and is no
+      longer: the usage poll in section 4 goes to `api.anthropic.com`. The
+      shape it settled into is the one to copy here — **off by default**, one
+      endpoint, the switch's own note saying what is sent and to whom, and the
+      readme saying it in full rather than in a badge. The badge itself still
+      holds, narrowly: sessions are what it claims about, and no session data
+      goes anywhere.
 - [ ] Notification Center posts for `waiting` and `stalled`, mirroring the
       chirps in `Chirp.swift` — same debounce, same "first snapshot after
       launch says nothing" rule.
@@ -213,17 +216,29 @@ surface is what it is, not what would be convenient.
 
 ## 4. Usage and limits
 
-`Usage.swift` and `StatusLineInstall.swift` cover Claude Code's 5-hour and
-7-day windows by standing in the status line path.
+Two paths, both Claude Code's. `StatusLineInstall.swift` wraps the status line;
+`UsageAPI.swift` asks `/api/oauth/usage` with the token `Credentials.swift`
+reads out of the keychain. `UsageStore.swift` merges the two newest-first and
+keeps the result across launches.
 
-- [?] Does Codex expose the same figures anywhere a wrapper can stand?
+- [x] A reading that survives the last session closing. The figure used to
+      vanish fifteen minutes after the last status line, which is exactly when
+      it gets asked for.
+- [x] A place to show it: ten-cell tracks in the footer, the reset times on
+      hover, the header's headline inside twenty percent of full, and the
+      collapsed island when a window is spent.
+- [?] Does Codex expose the same figures anywhere a wrapper can stand, or an
+      endpoint of its own?
 - [ ] Per-agent usage behind the `reportsUsage` capability flag, rather than
       the current single account-wide reading.
 - [ ] Token and cost totals read from the transcripts Roost already parses —
       the same ground `ccusage` covers, at no extra IO, since
       `TranscriptReader` is already reading those files.
-- [ ] A place to show it. The footer holds two bars; a fleet-wide breakdown
-      needs somewhere else, and that somewhere is not the notch.
+- [ ] A fleet-wide cost breakdown needs somewhere that is not the notch. The
+      footer is full.
+- [?] The keychain prompt comes back after every update, because an ad-hoc
+      signature is a new identity each build. Notarisation (section 6) may fix
+      it; find out before telling anyone it will.
 
 ---
 

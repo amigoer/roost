@@ -6,7 +6,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let model = RoostModel()
     private lazy var notch = NotchWindowController(model: model)
     private lazy var settings = SettingsWindowController(model: model)
-    private lazy var menu = buildMenu()
     private lazy var approvals = ApprovalServer { [model] request in
         await model.approvals.handle(request)
     }
@@ -27,8 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // and there is nothing to point at.
         notch.onGear = { [weak self] in self?.settings.show() }
         notch.onSecondaryClick = { [weak self] point in
-            guard let self else { return }
-            menu.popUp(positioning: nil, at: point, in: nil)
+            self?.buildMenu().popUp(positioning: nil, at: point, in: nil)
         }
 
         // Keep the collapsed hit target in step with the island as state changes.
@@ -43,13 +41,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 
     /// Two items. Anything that needs explaining belongs in the window, where
-    /// there is room to explain it.
+    /// there is room to explain it. Built per click, so it speaks whichever
+    /// language is current.
     private func buildMenu() -> NSMenu {
+        let strings = model.strings
         let menu = NSMenu()
-        menu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        menu.addItem(withTitle: strings.settingsMenuItem, action: #selector(openSettings), keyEquivalent: ",")
             .target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Roost", action: #selector(quit), keyEquivalent: "q").target = self
+        menu.addItem(withTitle: strings.quit, action: #selector(quit), keyEquivalent: "q").target = self
         return menu
     }
 

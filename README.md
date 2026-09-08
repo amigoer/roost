@@ -178,9 +178,12 @@ The code enforces these, and the comments say so:
 
 <img src="docs/settings.png" width="460" alt="The settings window">
 
-The two things worth choosing live here: whether to check for updates, and
-whether to answer permission prompts from the island. It is also the way out —
-an accessory app has no Dock icon to quit from.
+The three things worth choosing live here: whether to check for updates, which
+language the interface speaks, and whether to answer permission prompts from the
+island. It is also the way out — an accessory app has no Dock icon to quit from.
+
+Language follows your Mac until you pick English or 简体中文 yourself. The switch
+lands immediately and everywhere, island included.
 
 Nothing here sets the island's state. State is derived from what the sessions
 are actually doing, and a switch that overrode it would only ever be lying.

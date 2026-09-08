@@ -74,7 +74,7 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 
 <img src="docs/approval.png" alt="被按住的 Bash 调用，右侧是 Deny 和 Allow">
 
-在设置里打开——*Answer permission prompts in the island*。它往
+在设置里打开——*在岛上回答权限确认*。它往
 `~/.claude/settings.json` 里加一条指向 app 包内 `roost-hook` 的记录；同一个开关
 关掉就删除，别人的 hook 一个都不动。
 
@@ -153,10 +153,12 @@ Roost 唯一发出的请求是每 6 小时向 GitHub 的 releases API 查一次�
 
 ## 设置
 
-<img src="docs/settings.png" width="460" alt="设置窗口">
+<img src="docs/settings.zh-CN.png" width="460" alt="设置窗口">
 
-真正需要你做选择的两件事在这里：要不要检查更新、要不要在岛上回答权限确认。
-**退出也在这里**——accessory 应用没有 Dock 图标可以退。
+真正需要你做选择的三件事在这里：要不要检查更新、界面说哪种语言、要不要在岛上
+回答权限确认。**退出也在这里**——accessory 应用没有 Dock 图标可以退。
+
+语言默认跟随系统，也可以自己选 English 或简体中文。切换立刻生效，岛上一起变。
 
 这里没有任何东西可以设置岛的状态。状态是从会话实际在做什么推导出来的，
 一个能覆盖它的开关只会撒谎。

@@ -29,65 +29,92 @@ final class SettingsWindowController {
     }
 
     private func make() -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 432),
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: SettingsView.size),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
-        window.title = "Roost Settings"
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: SettingsView(model: model))
+        window.title = model.strings.settingsTitle
+        // The title bar belongs to AppKit, so the view hands it the wording
+        // again whenever the language changes underneath it.
+        window.contentView = NSHostingView(rootView: SettingsView(model: model) { [weak window] title in
+            window?.title = title
+        })
         return window
     }
 }
 
 struct SettingsView: View {
+    /// Tall enough for English, which is the longer of the two languages here;
+    /// Chinese leaves a few points of slack rather than resizing the window
+    /// under the cursor when the language changes.
+    static let size = CGSize(width: 460, height: 566)
+
     @Bindable var model: RoostModel
+    let retitle: (String) -> Void
+
+    private var strings: Strings { model.strings }
 
     var body: some View {
         Form {
             Section {
-                LabeledContent("Version", value: model.currentVersion)
-                LabeledContent("Update") {
+                LabeledContent(strings.version, value: model.currentVersion)
+                LabeledContent(strings.update) {
                     if let update = model.update {
-                        Button("Download \(update.version)") {
+                        Button(strings.download(update.version)) {
                             NSWorkspace.shared.open(update.page)
                         }
                     } else {
-                        Text("Up to date").foregroundStyle(.secondary)
+                        Text(strings.upToDate).foregroundStyle(.secondary)
                     }
                 }
-                Toggle("Check automatically", isOn: $model.checksForUpdates)
+                Toggle(strings.checkAutomatically, isOn: $model.checksForUpdates)
                     .toggleStyle(.switch)
             } header: {
-                Text("Roost")
+                Text(strings.appSection)
             } footer: {
-                Text("Checks the public releases page every six hours and sends nothing but the request. Installing an update stays manual.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                note(strings.updatesNote)
             }
 
             Section {
-                Toggle("Answer permission prompts in the island", isOn: Binding(
+                Picker(strings.interfaceLanguage, selection: $model.languageChoice) {
+                    ForEach(LanguageChoice.allCases, id: \.self) { choice in
+                        Text(strings.name(of: choice)).tag(choice)
+                    }
+                }
+            } header: {
+                Text(strings.languageSection)
+            } footer: {
+                note(strings.languageNote)
+            }
+
+            Section {
+                Toggle(strings.answerPrompts, isOn: Binding(
                     get: { model.answersPrompts },
                     set: { model.setAnswersPrompts($0) }
                 ))
                 .toggleStyle(.switch)
             } header: {
-                Text("Approvals")
+                Text(strings.approvalsSection)
             } footer: {
-                Text("Adds one hook to ~/.claude/settings.json, pointing at the helper inside this app. Turning it off takes the entry back out. With Roost closed, or no answer within a minute, sessions prompt exactly as they do now.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                note(strings.approvalsNote)
             }
 
             Section {
                 HStack {
                     Spacer()
-                    Button("Quit Roost") { NSApplication.shared.terminate(nil) }
+                    Button(strings.quit) { NSApplication.shared.terminate(nil) }
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 432)
+        .frame(width: Self.size.width, height: Self.size.height)
+        .onChange(of: model.language, initial: true) { retitle(strings.settingsTitle) }
+    }
+
+    private func note(_ body: String) -> some View {
+        Text(body)
+            .font(.callout)
+            .foregroundStyle(.secondary)
     }
 }

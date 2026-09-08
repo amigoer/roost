@@ -6,6 +6,7 @@ import RoostCore
 struct SessionRowView: View {
     let session: Session
     let isHovered: Bool
+    let strings: Strings
 
     var body: some View {
         HStack(spacing: 10) {
@@ -93,37 +94,21 @@ struct SessionRowView: View {
 
     private var lede: String? {
         switch session.state {
-        case .blocked(let reason): label(for: reason)
-        case .running: session.activity ?? "working"
+        case .blocked(let reason): strings.label(for: reason)
+        case .running: session.activity ?? strings.working
         case .done: nil
         }
     }
 
     private var fallbackTrail: String? {
-        if case .done = session.state { return "turn ended" }
+        if case .done = session.state { return strings.turnEnded }
         return nil
-    }
-
-    private func label(for reason: BlockReason) -> String {
-        switch reason {
-        case .permissionPrompt(let tool): tool.map { "needs permission: \($0)" } ?? "needs permission"
-        case .question: "asked you a question"
-        case .planApproval: "waiting on plan approval"
-        case .agentNeedsInput(let label): label.map { "\($0) needs input" } ?? "needs input"
-        case .stalledTool(let name): "stalled on \(name)"
-        }
     }
 
     /// Blocked rows count how long they have been stuck; everything else counts
     /// how long since anything happened, which is what makes a stale one obvious.
     private var elapsed: String {
-        let seconds = Int(isBlocked ? session.blockedFor
-                                    : Date().timeIntervalSince(session.lastActivityAt))
-        if seconds < 60 { return "<1m" }
-        let minutes = seconds / 60
-        if minutes < 60 { return "\(minutes)m" }
-        let hours = minutes / 60
-        if hours < 24 { return minutes % 60 == 0 ? "\(hours)h" : "\(hours)h\(String(format: "%02d", minutes % 60))m" }
-        return "\(hours / 24)d"
+        strings.elapsed(Int(isBlocked ? session.blockedFor
+                                      : Date().timeIntervalSince(session.lastActivityAt)))
     }
 }

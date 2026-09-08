@@ -21,6 +21,19 @@ final class RoostModel {
 
     static let updatesKey = "checksForUpdates"
 
+    /// Remembered across launches; `system` until someone picks otherwise, so
+    /// a first launch already speaks the language the Mac does.
+    var languageChoice = LanguageChoice(rawValue: UserDefaults.standard.string(forKey: languageKey) ?? "") ?? .system {
+        didSet { UserDefaults.standard.set(languageChoice.rawValue, forKey: Self.languageKey) }
+    }
+
+    static let languageKey = "language"
+
+    var language: Language { languageChoice.language }
+
+    /// Every word the interface says, in the language that is current.
+    var strings: Strings { Strings(language) }
+
     /// Whether the approval hook is installed. Read from disk on demand rather
     /// than watched: it changes only when something here writes it.
     private(set) var answersPrompts = false

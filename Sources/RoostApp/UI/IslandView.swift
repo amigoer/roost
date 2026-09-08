@@ -16,6 +16,8 @@ struct IslandView: View {
 
     private var showsPanel: Bool { state.showsPanel(pinned: model.isPinned) }
 
+    private var strings: Strings { model.strings }
+
     private var size: CGSize {
         IslandGeometry.size(level: model.level,
                             tier: model.tier,
@@ -76,18 +78,20 @@ struct IslandView: View {
                 .padding(.bottom, 5)
 
             if let held = model.approvals.current {
-                ApprovalCard(request: held, hovered: state.hoveredApproval)
+                ApprovalCard(request: held, hovered: state.hoveredApproval, strings: strings)
             }
 
             if model.visibleSessions.isEmpty {
-                Text(model.staleCount > 0 ? "Nothing needs you" : "No live sessions")
+                Text(model.staleCount > 0 ? strings.nothingNeedsYou : strings.noLiveSessions)
                     .font(.system(size: 12))
                     .foregroundStyle(Brand.textTertiary)
                     .frame(maxHeight: .infinity)
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(model.visibleSessions.enumerated()), id: \.element.id) { index, session in
-                        SessionRowView(session: session, isHovered: state.hoveredIndex == index)
+                        SessionRowView(session: session,
+                                       isHovered: state.hoveredIndex == index,
+                                       strings: strings)
                     }
                 }
             }
@@ -96,13 +100,13 @@ struct IslandView: View {
                 HStack(spacing: 7) {
                     if model.staleCount > 0 {
                         MascotView(face: .idle, cell: MascotView.small)
-                        Text("\(model.staleCount) idle")
+                        Text(strings.idleCount(model.staleCount))
                             .font(.system(size: 10))
                             .foregroundStyle(Brand.textTertiary)
                     }
                     Spacer(minLength: 6)
                     if let update = model.update {
-                        Text("Roost \(update.version) available")
+                        Text(strings.updateAvailable(update.version))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(MascotFace.done.colour.swiftUI)
                     }
@@ -166,11 +170,11 @@ struct IslandView: View {
     @ViewBuilder
     private var headline: some View {
         if model.blockedCount > 0 {
-            Text("\(model.blockedCount) waiting").foregroundStyle(model.face.colour.swiftUI)
+            Text(strings.waitingCount(model.blockedCount)).foregroundStyle(model.face.colour.swiftUI)
         } else if model.runningCount > 0 {
-            Text("\(model.runningCount) running").foregroundStyle(MascotFace.running.colour.swiftUI)
+            Text(strings.runningCount(model.runningCount)).foregroundStyle(MascotFace.running.colour.swiftUI)
         } else {
-            Text("\(model.visibleSessions.count) session\(model.visibleSessions.count == 1 ? "" : "s")")
+            Text(strings.sessionCount(model.visibleSessions.count))
                 .foregroundStyle(Brand.textTertiary)
         }
     }

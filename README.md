@@ -7,7 +7,7 @@
 **Your agent sessions, perched on the notch.**
 
 A macOS menu-bar companion that answers one question from the corner of your eye:
-*which of my Claude Code sessions has stopped and is waiting on me?*
+*which of my agent sessions has stopped and is waiting on me?*
 
 <img src="https://img.shields.io/badge/macOS-14%2B-1c1206?style=flat-square" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
@@ -62,7 +62,7 @@ one more icon up there is the clutter this app exists to remove.
 
 | Part | Says |
 |:--|:--|
-| Agent mark | Whose session it is. One agent today; the slot is there for the day there are more. |
+| Agent mark | Whose session it is: Claude Code's eight-ray burst, or Codex's ring. Shape carries it, because the mascot beside it is already spending colour on the state. |
 | `project · title` | Which repo, then which conversation. The repo answers "do I care" faster. |
 | Second line | What it is doing *right now*: the tool, then the argument a person would recognise — the command, the file, the pattern — pulled straight out of the transcript. Blocked rows say why instead. |
 | Model | What it is running, from the desktop app's own record of the session. |
@@ -92,6 +92,7 @@ change what one does.
 | `Read`, `Grep`, `Glob`, `TodoWrite`, … | Never. Filtered inside the hook, so the common path never pays for a round trip. |
 | `Bash`, `WebFetch`, `mcp__*`, everything else | Held only where a prompt would really have appeared: a session in `default` mode, or one whose mode nothing on disk records. `auto` — the desktop app's own default — along with `bypassPermissions` and `plan`, answers for itself. |
 | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | Held only in `default` mode. An accept-edits session has answered already. |
+| `AskUserQuestion`, `ExitPlanMode` | Always, in every mode. No permission setting answers a question or judges a plan. |
 
 The mode is read at the moment of the call rather than taken from the last
 scan: first from the session's own transcript, which records the mode of every
@@ -110,6 +111,46 @@ The island is click-through by design, so the buttons are geometry on both
 sides: the card lays them out from the same constants the hit test reads. That
 mapping is [tested](Packages/RoostCore/Tests/RoostCoreTests/ApprovalTests.swift),
 because clicking the wrong half of a card would answer the wrong question.
+
+### Questions and plans
+
+The same hook carries two more things a session can be stopped on, and neither
+of them is a permission.
+
+**A question.** `AskUserQuestion` arrives with its options and the card lists
+them as rows; clicking one sends it back. There is no hook decision that means
+*here is the answer*, so the pick goes back as a denial whose reason is the
+chosen label — which is exactly what the model reads next. Held in every
+permission mode, because none of them answers a question: `bypassPermissions`
+skips prompts, it does not decide which deploy target you meant. Anything the
+card cannot answer in full — several questions at once, a multi-select, an
+option that would not parse — is left to prompt the way it always did.
+
+**A plan.** `ExitPlanMode` arrives with the plan, and the card shows the top of
+it with **Revise** and **Approve**. Approving lets the call run, which is
+exactly what the terminal's own plan prompt does; revising denies it and leaves
+the session in plan mode with an instruction to ask what to change, because the
+island has nowhere to type feedback and would rather say so than invent any.
+
+Six flattened lines rather than rendered markdown: at this width a heading
+hierarchy costs more than it carries, so the markup is spent on getting more of
+the plan's own words on screen. The card says how many lines it could not show,
+and the conversation still has all of them.
+
+### More than one agent
+
+Codex speaks the same hook protocol — the same event names, the same payload
+fields, a hooks file in a different place — so the same helper serves it, told
+which agent it is standing in for. Turn it on under *Agents*.
+
+Two differences shape what that gets you. Codex has a `PermissionRequest` event
+that fires only where a prompt was really about to appear, so there is no
+permission mode to weigh: the event **is** the prompt, the card goes up as it
+arrives, and the answer goes back in the shape Codex asks for. And Codex writes
+no registry of live sessions and no transcript that says what is happening now,
+so a row for one is assembled from the events it announces — started, prompted,
+reached for a tool, finished — rather than read off disk. A tool call with
+nothing after it goes stalled on the same grace period a transcript would.
 
 ## How it reads state
 
@@ -133,13 +174,46 @@ dangling tool call plus elapsed time is the only evidence available:
   noticed without re-reading anything.
 
 Sessions that have been `done` for **30 minutes** stop being listed and collapse
-into an `N idle` footer.
+into an `N idle` footer. Sessions Roost hears about only through hooks are
+forgotten after **12 hours** of silence, since an agent killed rather than
+closed sends no `SessionEnd`.
+
+### The usage windows
+
+The five-hour and seven-day figures reach a status line and nowhere else on the
+machine — not the transcripts, not the stats cache — so reading them means
+standing in that path. Under *Usage*, Roost installs a status line command that
+**wraps** whatever is already configured: the same payload goes to its stdin,
+its output is printed through unchanged, and the entry Roost writes carries it
+base64'd in its own arguments. Switching it back off restores the original
+exactly, from the settings file alone, whether or not Roost is running.
+
+Both windows show as bars along the footer. Only the five-hour one gets a
+countdown, and only once it is tight enough that *when it comes back* is the
+more useful number. A figure stops being shown fifteen minutes after the last
+report, because nothing writes a status line once the last session closes.
 
 The one request Roost makes is an update check against GitHub's releases API,
 every six hours, sending nothing but the request itself. A newer version puts a
 dot on the gear and a line in the footer; installing it stays manual,
 because an ad-hoc signed build has no signature worth checking. Switch the check
 off under *Check automatically*.
+
+## Sound
+
+Two chirps, off until switched on. Synthesised square waves rather than bundled
+audio, for the same reason the mascot is a pixel grid: it is the idiom the app
+already speaks, and at a third of a second nobody wants a sample.
+
+Pitch carries the meaning — rising when a session stops on something only a
+person can answer, falling when a turn ends — so the two are told apart across a
+room without being listened to. Both sit well under full scale: a sound that has
+to be turned down is one that gets turned off.
+
+The decision comes from the difference between two scans rather than from
+events, so a session moving between two kinds of blocked stays quiet, and the
+first snapshot after launch says nothing at all — everything in it was already
+true before Roost opened.
 
 ## Escalation
 
@@ -166,7 +240,14 @@ The code enforces these, and the comments say so:
 ## Interaction
 
 - **Hover** the notch to expand the list (up to 6 rows).
-- **Click a row** to open that conversation, via `claude://resume?session=…` —
+- **Click a row** to land where that session actually is. A session is a CLI
+  process with no window of its own, so Roost climbs its process tree: the
+  first ancestor macOS considers a running application is the window it is
+  sitting in — Terminal, iTerm2, Ghostty, Warp, an editor's built-in one. The
+  shells and helpers in between are skipped by activation policy, which is what
+  makes this work without a list of terminal names to keep current.
+- A conversation the **desktop app** started can do better than being raised, so
+  it still gets `claude://resume?session=…` —
   the one route in that works from outside. What it does turns entirely on the
   id it is handed: it puts `local_` back on the front and focuses the record it
   finds under that id. The desktop app's own id for a conversation lands on the
@@ -179,8 +260,9 @@ The code enforces these, and the comments say so:
 - The other two routes, `code/continue` and `code/needs-input`, take the app's
   own id too but sit behind an account gate that logs `code entry deep link
   gated off` and does nothing else.
-- **Click Deny or Allow** on a held tool call. The island stays open on its own
-  while one is waiting, so answering never depends on the cursor being there.
+- **Click Deny or Allow** on a held tool call, **an answer** on a held question,
+  or **Revise or Approve** on a plan. The island stays open on its own while one
+  is waiting, so answering never depends on the cursor being there.
 - **Click the gear** in the panel's top-right for settings. Right-clicking the
   notch offers the same window plus Quit, which is what to reach for when the
   island is collapsed and there is nothing to point at.
@@ -191,9 +273,17 @@ The code enforces these, and the comments say so:
 
 <img src="docs/settings.png" width="460" alt="The settings window">
 
-The three things worth choosing live here: whether to check for updates, which
-language the interface speaks, and whether to answer permission prompts from the
-island. It is also the way out — an accessory app has no Dock icon to quit from.
+Everything worth choosing lives here, each switch with the sentence that says
+what it actually does: whether to check for updates and whether to open at
+login, which language the interface speaks, whether to answer permission
+prompts from the island, whether to watch Codex as well, whether to say a state
+change out loud, and whether to stand in the status line path for the usage
+windows. It is also the way out — an accessory app has no Dock icon to quit
+from.
+
+Every switch that touches a file writes it additively and takes it back out the
+same way: hooks that are not Roost's are never touched, and a status line that
+is not Roost's is carried rather than replaced.
 
 Language follows your Mac until you pick English or 简体中文 yourself. The switch
 lands immediately and everywhere, island included.
@@ -238,11 +328,18 @@ swift test --package-path Packages/RoostCore
 ```
 Sources/RoostApp/
   Notch/       Overlay panel, cutout geometry, global hover monitor
-  UI/          Island shape, collapsed strip, session rows, mascot art
+  UI/          Island shape, collapsed strip, rows, cards, mascot art
+  Settings/    The one window, and the only way out of the app
+  Approvals/   The socket the helpers talk to
   Resources/   App icon, generated from the same pixel grid
+Sources/RoostHook/
+  One helper, three jobs, told apart by its arguments: hold a Claude Code
+  call, stand in for another agent, or forward a status line payload.
 Packages/RoostCore/
   Session, SessionState, Escalation, NotchMetrics    pure model
   SessionRegistry, SessionScanner, TranscriptReader  detection, tested
+  Approval, HookInstall, StatusLineInstall           the wire and the files
+  Usage, Chirp, Announcer, PlanPreview               what the island says
 ```
 
 `RoostCore` is deliberately free of AppKit so the detection and geometry can be

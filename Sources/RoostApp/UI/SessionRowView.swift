@@ -10,7 +10,7 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            AgentMarkView()
+            AgentMarkView(kind: session.agent)
 
             VStack(alignment: .leading, spacing: 2) {
                 title

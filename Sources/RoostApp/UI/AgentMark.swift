@@ -1,15 +1,15 @@
 import SwiftUI
+import RoostCore
 
 /// Whose session this is, drawn in the same pixel idiom as the mascot.
 ///
-/// There is one kind today because the registry Roost reads belongs to one
-/// tool, but the row has the slot for the day that stops being true.
-enum AgentKind {
-    case claudeCode
-
-    /// An eight-ray burst on an 11x11 grid. Sparse on purpose: at 16pt the
-    /// dotted diagonals still read as rays, while anything thicker turns into
-    /// a blob.
+/// Shape carries the identity and colour only reinforces it: these sit beside
+/// a mascot that is already spending hue on the session's state, and two
+/// things competing on colour in one row is one too many.
+extension AgentKind {
+    /// Claude Code is an eight-ray burst, Codex a ring around a point. Both on
+    /// an 11x11 grid, and both sparse on purpose: at 16pt the dotted diagonals
+    /// still read as rays, while anything thicker turns into a blob.
     var grid: [String] {
         switch self {
         case .claudeCode:
@@ -26,6 +26,20 @@ enum AgentKind {
                 ".X...X...X.",
                 ".....X.....",
             ]
+        case .codex:
+            [
+                "....XXX....",
+                "..XX...XX..",
+                ".X.......X.",
+                "X.........X",
+                "X.........X",
+                "X....X....X",
+                "X.........X",
+                "X.........X",
+                ".X.......X.",
+                "..XX...XX..",
+                "....XXX....",
+            ]
         }
     }
 
@@ -33,6 +47,7 @@ enum AgentKind {
     var colour: Color {
         switch self {
         case .claudeCode: Brand.hex(0xD97757).swiftUI
+        case .codex: Brand.hex(0x10A37F).swiftUI
         }
     }
 }

@@ -2,6 +2,9 @@ import Foundation
 
 public struct Session: Sendable, Identifiable, Hashable {
     public let id: String
+    /// Whose session it is. Two agents write two different registries, and a
+    /// row has to say which one it is reading.
+    public let agent: AgentKind
     public let pid: pid_t
     /// Human-readable name the CLI derives, e.g. "perch-9b".
     public let name: String
@@ -48,11 +51,13 @@ public struct Session: Sendable, Identifiable, Hashable {
         return Date().timeIntervalSince(stateSince)
     }
 
-    public init(id: String, pid: pid_t, name: String, cwd: String, entrypoint: String?,
+    public init(id: String, agent: AgentKind = .claudeCode, pid: pid_t, name: String,
+                cwd: String, entrypoint: String?,
                 model: String? = nil,
                 startedAt: Date, state: SessionState, stateSince: Date,
                 activity: String?, detail: String? = nil, lastActivityAt: Date) {
         self.id = id
+        self.agent = agent
         self.pid = pid
         self.name = name
         self.cwd = cwd

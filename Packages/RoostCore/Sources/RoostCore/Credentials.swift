@@ -79,3 +79,49 @@ public enum Credentials {
         return item as? Data
     }
 }
+
+/// The credential Roost has already been given, held for as long as it is good
+/// for.
+///
+/// Reading another application's keychain item raises a prompt for any build
+/// that is not on that item's access list, and ad-hoc signing puts every build
+/// on an identity of its own -- so "always allow" lasts exactly until the next
+/// update, and a developer rebuilding is a new application every time. Polling
+/// read it fresh on every tick, which turned one grant into a dialog a minute.
+///
+/// One read while the token is good is the whole of what the figure costs.
+public actor CredentialStore {
+    public static let shared = CredentialStore()
+
+    /// How long a missing or expired credential is left alone before looking
+    /// again. Claude Code owns the item and rotates it on its own schedule with
+    /// nothing to tell Roost when; asking more often than this buys nothing but
+    /// prompts.
+    public static let recheckAfter: TimeInterval = 15 * 60
+
+    private let read: @Sendable () -> OAuthCredential?
+    private var held: OAuthCredential?
+    private var lookedAt: Date = .distantPast
+
+    public init(read: @escaping @Sendable () -> OAuthCredential? = { Credentials.oauth() }) {
+        self.read = read
+    }
+
+    /// The credential, if there is a good one. Reads the keychain only when
+    /// what is held has run out and the wait since the last look has passed.
+    public func current(now: Date = Date()) -> OAuthCredential? {
+        if let held, held.isValid(now: now) { return held }
+        guard now.timeIntervalSince(lookedAt) >= Self.recheckAfter else { return nil }
+        lookedAt = now
+        held = read()
+        guard let held, held.isValid(now: now) else { return nil }
+        return held
+    }
+
+    /// Look now. For the moment the switch is turned on: someone has just asked
+    /// for the figure, so the wait is not theirs to serve.
+    public func refresh(now: Date = Date()) -> OAuthCredential? {
+        lookedAt = .distantPast
+        return current(now: now)
+    }
+}

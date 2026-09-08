@@ -14,6 +14,9 @@ final class IslandState {
     /// Which answer of a held question the cursor is on.
     var hoveredOption: Int?
     var hoveredMenu = false
+    /// Whether the cursor is on the quota meters, which spells their reset
+    /// times out along the footer.
+    var hoveredUsage = false
 
     /// A held tool call opens every island: it is addressed to the person, not
     /// to a display, and they may be looking at either one.

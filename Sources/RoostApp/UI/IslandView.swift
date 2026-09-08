@@ -105,31 +105,40 @@ struct IslandView: View {
                 }
             }
 
-            if model.hasFooter {
-                HStack(spacing: 9) {
-                    if model.staleCount > 0 {
-                        MascotView(face: .idle, cell: MascotView.small)
-                        Text(strings.idleCount(model.staleCount))
-                            .font(.system(size: 10))
-                            .foregroundStyle(Brand.textTertiary)
-                    }
-                    Spacer(minLength: 6)
-                    if let usage = model.liveUsage {
-                        UsageMeters(usage: usage, strings: strings)
-                    }
-                    if let update = model.update {
-                        Text(strings.updateAvailable(update.version))
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(MascotFace.done.colour.swiftUI)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 12)
-                .padding(.top, 4)
-            }
+            if model.hasFooter { footer }
             Color.clear.frame(height: 6)
         }
         .transition(.opacity)
+    }
+
+    /// Everything true of the fleet rather than of any one session. The meters
+    /// sit flush right so their hover target is a fixed rectangle, and the
+    /// whole strip gives way to the reset times while the cursor is on them.
+    private var footer: some View {
+        HStack(spacing: 9) {
+            if state.hoveredUsage, let usage = model.liveUsage {
+                UsageDetail(usage: usage, strings: strings)
+            } else {
+                if model.staleCount > 0 {
+                    MascotView(face: .idle, cell: MascotView.small)
+                    Text(strings.idleCount(model.staleCount))
+                        .font(.system(size: 10))
+                        .foregroundStyle(Brand.textTertiary)
+                }
+                Spacer(minLength: 6)
+                if let update = model.update {
+                    Text(strings.updateAvailable(update.version))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(MascotFace.done.colour.swiftUI)
+                }
+                if let usage = model.liveUsage {
+                    UsageMeters(usage: usage, strings: strings)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, IslandGeometry.Footer.inset)
+        .padding(.top, 4)
     }
 
     /// The cutout row: the camera lives in the middle, so the name goes left of

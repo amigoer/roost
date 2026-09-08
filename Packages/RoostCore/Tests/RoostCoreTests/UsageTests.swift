@@ -392,3 +392,77 @@ final class UsageStoreTests: XCTestCase {
         XCTAssertEqual(usage.source, .statusLine)
     }
 }
+
+final class UsageFooterTests: XCTestCase {
+    private let notch = CGSize(width: 200, height: 32)
+    private let width: CGFloat = 470
+
+    private func hit(y: CGFloat, x: CGFloat, rows: Int = 2) -> Bool {
+        IslandGeometry.usageHit(offsetFromTop: y, offsetFromLeft: x, notch: notch,
+                                islandWidth: width, rowCount: rows)
+    }
+
+    /// The band the hit test uses has to be the room the layout was given, or
+    /// the meters are hovered from somewhere they are not drawn.
+    func testTheFooterBandIsWhatTheLayoutReservesForIt() {
+        let withFooter = IslandGeometry.expandedSize(notch: notch, sessionCount: 2, hasFooter: true)
+        let without = IslandGeometry.expandedSize(notch: notch, sessionCount: 2, hasFooter: false)
+        XCTAssertEqual(withFooter.height - without.height, IslandGeometry.Footer.height)
+        XCTAssertEqual(IslandGeometry.footerTop(notch: notch, rowCount: 2),
+                       without.height - 10)
+    }
+
+    func testTheMetersAreHoveredWhereTheyAreDrawn() {
+        let top = IslandGeometry.footerTop(notch: notch, rowCount: 2)
+        XCTAssertTrue(hit(y: top + 12, x: width - IslandGeometry.Footer.inset - 20))
+        XCTAssertTrue(hit(y: top + 12,
+                          x: width - IslandGeometry.Footer.inset
+                              - IslandGeometry.Footer.metersWidth + 1))
+    }
+
+    func testNothingOutsideTheStripCounts() {
+        let top = IslandGeometry.footerTop(notch: notch, rowCount: 2)
+        XCTAssertFalse(hit(y: top - 1, x: width - 20))
+        XCTAssertFalse(hit(y: top + IslandGeometry.Footer.height + 1, x: width - 20))
+        // Left of the meters is the idle count, which is not a hover target.
+        XCTAssertFalse(hit(y: top + 12, x: 40))
+        // Past the inset is the island's edge.
+        XCTAssertFalse(hit(y: top + 12, x: width - 4))
+    }
+
+    /// An empty list still leaves one row's worth of height, so the strip does
+    /// not climb into the placeholder.
+    func testAnEmptyListStillPutsTheStripBelowARow() {
+        XCTAssertEqual(IslandGeometry.footerTop(notch: notch, rowCount: 0),
+                       IslandGeometry.footerTop(notch: notch, rowCount: 1))
+    }
+}
+
+final class UsageWordingTests: XCTestCase {
+    private var utc: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+
+    /// 2026-09-10T14:59:59Z
+    private let reset = Date(timeIntervalSince1970: 1_789_052_399)
+
+    func testAClockReadsTheSameInBothLanguages() {
+        for language in [Language.english, .chinese] {
+            XCTAssertEqual(Strings(language).clock(reset, calendar: utc), "14:59")
+        }
+    }
+
+    func testADayIsNamedTheWayEachLanguageNamesIt() {
+        XCTAssertEqual(Strings(.english).day(reset, calendar: utc), "Sep 10")
+        XCTAssertEqual(Strings(.chinese).day(reset, calendar: utc), "9月10日")
+    }
+
+    /// The label said "what is left" while the figure was what had been spent.
+    /// Neither says "left" now, because the bar fills as the window empties.
+    func testTheFigureIsWhatHasBeenSpent() {
+        XCTAssertEqual(Strings(.english).percent(0.76), "76%")
+        XCTAssertEqual(Strings(.chinese).percent(0.115), "12%")
+    }
+}

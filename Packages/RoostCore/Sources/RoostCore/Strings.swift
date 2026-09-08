@@ -125,6 +125,45 @@ public struct Strings: Sendable, Hashable {
         pick("resets in \(elapsed(seconds))", "\(elapsed(seconds))后重置")
     }
 
+    /// A figure and the moment it was true. Shown instead of hiding the figure
+    /// once nothing has reported for a while: someone asking how much is left
+    /// is worse served by nothing at all than by a number and its age.
+    public func asOf(_ date: Date) -> String {
+        pick("as of \(clock(date))", "\(clock(date)) 时")
+    }
+
+    /// The window has turned over since the reading was taken. How much has
+    /// gone on it since is unknown, so that is said rather than shown as zero.
+    public var windowReset: String { pick("reset", "已重置") }
+
+    public func resetsAt(_ date: Date) -> String {
+        pick("resets \(clock(date))", "\(clock(date)) 重置")
+    }
+
+    /// The seven-day window comes back on a day rather than at an hour, and a
+    /// countdown in days is not one anybody sits and waits out.
+    public func resetsOn(_ date: Date) -> String {
+        pick("resets \(day(date))", "\(day(date))重置")
+    }
+
+    /// 24-hour, and built by hand rather than by a formatter: this sits beside
+    /// a percentage in ten point type, where an am/pm suffix is two characters
+    /// that say nothing the position does not.
+    func clock(_ date: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+    }
+
+    func day(_ date: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.month, .day], from: date)
+        let month = min(max(parts.month ?? 1, 1), 12)
+        let number = parts.day ?? 1
+        return pick("\(Self.months[month - 1]) \(number)", "\(month)月\(number)日")
+    }
+
+    static let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
     public func waitingCount(_ count: Int) -> String { pick("\(count) waiting", "\(count) 个等待中") }
     public func runningCount(_ count: Int) -> String { pick("\(count) running", "\(count) 个运行中") }
     public func sessionCount(_ count: Int) -> String {

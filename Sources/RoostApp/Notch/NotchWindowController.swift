@@ -119,6 +119,7 @@ final class NotchWindowController {
                 island.state.hoveredApproval = nil
                 island.state.hoveredOption = nil
                 island.state.hoveredMenu = false
+                island.state.hoveredUsage = false
             }
             // Grow the hit rect immediately, not on the animation's schedule,
             // or the cursor lands outside it and the panel closes underneath.
@@ -127,6 +128,7 @@ final class NotchWindowController {
         hover.onMove = { [weak self] point in
             guard let self, let island = islands[uuid] else { return }
             island.state.hoveredMenu = menuHit(at: point, on: uuid)
+            island.state.hoveredUsage = usageHit(at: point, on: uuid)
             island.state.hoveredApproval = approvalHit(at: point, on: uuid)
             island.state.hoveredOption = optionIndex(at: point, on: uuid)
             let onHeldCall = island.state.hoveredApproval != nil || island.state.hoveredOption != nil
@@ -194,6 +196,22 @@ final class NotchWindowController {
                                       offsetFromLeft: point.x - (screen.frame.midX - width / 2),
                                       notch: notch,
                                       islandWidth: width)
+    }
+
+    private func usageHit(at point: NSPoint, on uuid: String) -> Bool {
+        guard model.liveUsage != nil, let island = islands[uuid], let screen = screen(uuid),
+              island.state.showsPanel(pinned: model.isPinned) else { return false }
+        let notch = screen.signalAnchorRect.size
+        let width = IslandGeometry.expandedSize(notch: notch,
+                                                sessionCount: model.visibleSessions.count,
+                                                hasFooter: model.hasFooter,
+                                                heldHeight: model.heldHeight).width
+        return IslandGeometry.usageHit(offsetFromTop: screen.frame.maxY - point.y,
+                                       offsetFromLeft: point.x - (screen.frame.midX - width / 2),
+                                       notch: notch,
+                                       islandWidth: width,
+                                       rowCount: model.visibleSessions.count,
+                                       heldHeight: model.heldHeight)
     }
 
     /// The island is centred on its own screen, so a click has to be measured

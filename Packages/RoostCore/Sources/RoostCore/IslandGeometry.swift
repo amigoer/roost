@@ -154,6 +154,35 @@ public enum IslandGeometry {
         return index < min(optionCount, ApprovalGate.maxOptions) ? index : nil
     }
 
+    /// The strip the panel ends in: idle count, quota meters, a new build.
+    ///
+    /// Everything here is read by the layout and by the hit test both, because
+    /// the island paints nothing that can be clicked through and a hover target
+    /// that has drifted from what is drawn points at the wrong thing.
+    public enum Footer {
+        public static let height: CGFloat = 24
+        public static let inset: CGFloat = 12
+        /// The meters keep this width whatever they are showing, so the hover
+        /// target does not move as a figure gains or loses a digit.
+        public static let metersWidth: CGFloat = 176
+    }
+
+    public static func footerTop(notch: CGSize, rowCount: Int, heldHeight: CGFloat = 0) -> CGFloat {
+        rowsTopInset(notch: notch, heldHeight: heldHeight)
+            + CGFloat(max(1, min(rowCount, maxVisibleRows))) * rowHeight
+    }
+
+    /// Whether a point lands on the quota meters, which is what swaps the
+    /// footer for the reset times behind them.
+    public static func usageHit(offsetFromTop y: CGFloat, offsetFromLeft x: CGFloat,
+                                notch: CGSize, islandWidth: CGFloat,
+                                rowCount: Int, heldHeight: CGFloat = 0) -> Bool {
+        let top = footerTop(notch: notch, rowCount: rowCount, heldHeight: heldHeight)
+        guard y >= top, y <= top + Footer.height else { return false }
+        let trailing = islandWidth - Footer.inset
+        return x >= trailing - Footer.metersWidth && x <= trailing
+    }
+
     public static let rowHeight: CGFloat = 46
     public static let maxVisibleRows = 6
 
@@ -182,7 +211,7 @@ public enum IslandGeometry {
         let rows = max(1, min(sessionCount, maxVisibleRows))
         return CGSize(width: max(expandedWidth, notch.width + 160),
                       height: rowsTopInset(notch: notch, heldHeight: heldHeight)
-                              + CGFloat(rows) * rowHeight + (hasFooter ? 24 : 0) + 10)
+                              + CGFloat(rows) * rowHeight + (hasFooter ? Footer.height : 0) + 10)
     }
 
     public static func size(level: SignalLevel, tier: EscalationTier, notch: CGSize,

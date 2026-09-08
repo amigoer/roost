@@ -120,6 +120,13 @@ public struct Strings: Sendable, Hashable {
     /// The quota windows, named as short as the footer allows.
     public var fiveHour: String { pick("5h", "5时") }
     public var sevenDay: String { pick("7d", "7天") }
+
+    public func name(of window: Usage.WindowLabel) -> String {
+        switch window {
+        case .fiveHour: fiveHour
+        case .sevenDay: sevenDay
+        }
+    }
     public func percent(_ used: Double) -> String { "\(Int((used * 100).rounded()))%" }
     public func resetsIn(_ seconds: Int) -> String {
         pick("resets in \(elapsed(seconds))", "\(elapsed(seconds))后重置")

@@ -104,4 +104,37 @@ final class AnnouncerTests: XCTestCase {
         _ = announcer.cue(for: [session("a", .running)])
         XCTAssertNil(announcer.cue(for: [session("a", .running)]))
     }
+
+    /// A window running out is a session stopping, from the other end.
+    func testAWindowRunningOutIsAnnouncedOnce() {
+        var announcer = Announcer()
+        XCTAssertNil(announcer.cue(forSpentWindow: false))
+        XCTAssertEqual(announcer.cue(forSpentWindow: true), .waiting)
+        XCTAssertNil(announcer.cue(forSpentWindow: true))
+    }
+
+    /// A window already spent when the app opened is not news.
+    func testAWindowFoundSpentAtLaunchSaysNothing() {
+        var announcer = Announcer()
+        XCTAssertNil(announcer.cue(forSpentWindow: true))
+        XCTAssertNil(announcer.cue(forSpentWindow: true))
+    }
+
+    /// It comes back, and then it goes again.
+    func testTheSecondCrossingIsAnnouncedToo() {
+        var announcer = Announcer()
+        _ = announcer.cue(forSpentWindow: false)
+        XCTAssertEqual(announcer.cue(forSpentWindow: true), .waiting)
+        XCTAssertNil(announcer.cue(forSpentWindow: false))
+        XCTAssertEqual(announcer.cue(forSpentWindow: true), .waiting)
+    }
+
+    /// The two baselines are separate: a fleet already running must not eat the
+    /// window's first look, nor the other way round.
+    func testTheWindowKeepsItsOwnBaseline() {
+        var announcer = Announcer()
+        _ = announcer.cue(for: [session("a", .running)])
+        XCTAssertNil(announcer.cue(forSpentWindow: false))
+        XCTAssertEqual(announcer.cue(forSpentWindow: true), .waiting)
+    }
 }

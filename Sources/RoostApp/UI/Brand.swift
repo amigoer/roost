@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import RoostCore
 
 /// The palette from the mascot design sheet.
 ///
@@ -25,6 +26,16 @@ enum Brand {
     static var textPrimary: Color { hex(0xF2F2F4).swiftUI }
     static var textSecondary: Color { hex(0x9A9CA3).swiftUI }
     static var textTertiary: Color { hex(0x7F818A).swiftUI }
+
+    /// What a quota window wears at a given level, read by the meters and by
+    /// the headline both, so a tight window looks the same wherever it is said.
+    static func usage(_ used: Double) -> NSColor {
+        switch used {
+        case ..<0.5: idleBadge
+        case ..<Usage.tight: orange
+        default: red
+        }
+    }
 
     static func hex(_ value: UInt32) -> NSColor {
         NSColor(srgbRed: CGFloat((value >> 16) & 0xFF) / 255,

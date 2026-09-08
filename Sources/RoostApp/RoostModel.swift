@@ -18,7 +18,7 @@ final class RoostModel {
     /// Safe to call as often as anything likes: it decides from the difference
     /// between two snapshots, so a second look at the same one says nothing.
     func announce() {
-        sounds.observe(sessions)
+        sounds.observe(sessions, spentWindow: spentUsage != nil)
     }
 
     /// The sessions as the island shows them: what the scan read, plus the one
@@ -285,8 +285,39 @@ final class RoostModel {
     private var updateTask: Task<Void, Never>?
     private var usageTask: Task<Void, Never>?
 
+    /// A window near enough to full to be the loudest thing about the fleet.
+    ///
+    /// Below this the figure is background. Above it, it is what is going to
+    /// stop the work, which is a louder fact than how many sessions happen to
+    /// be running -- and a stale reading is not allowed to raise it, because
+    /// escalating on a number nobody has confirmed for an hour is a false alarm
+    /// with a countdown attached.
+    var tightUsage: (label: Usage.WindowLabel, window: UsageWindow)? {
+        guard let usage = liveUsage, usage.isFresh(), let binding = usage.binding,
+              binding.window.used >= Usage.tight, !usage.hasReset(binding.window)
+        else { return nil }
+        return binding
+    }
+
+    /// A window with nothing left in it, while there is work for it to stop.
+    ///
+    /// A wall is only worth the island's shape when somebody is walking into
+    /// it. On a Mac with nothing running, a spent window is a fact about later,
+    /// and the notch stays the notch.
+    var spentUsage: UsageWindow? {
+        guard let usage = liveUsage, usage.isFresh(), let spent = usage.spent,
+              !usage.hasReset(spent) else { return nil }
+        return spent
+    }
+
+    /// A spent window blocks every session there is, which is blocked in the
+    /// one sense the island means by the word. Ranked below the sessions' own
+    /// reading: somebody waiting on a prompt is waiting on you, where a spent
+    /// window is waiting on a clock.
     var level: SignalLevel {
-        SignalLevel.aggregate(sessions.map(\.state))
+        let sessions = SignalLevel.aggregate(self.sessions.map(\.state))
+        guard sessions != .dormant, spentUsage != nil else { return sessions }
+        return .blocked
     }
 
     /// The face the collapsed island and the menu bar item wear: the one
@@ -298,9 +329,11 @@ final class RoostModel {
         case .dormant: return .idle
         case .running: return .running
         case .done: return .done
-        case .blocked: return blockedSessions.contains { $0.state.face == .waiting }
-            ? .waiting
-            : .stalled
+        case .blocked:
+            if blockedSessions.contains(where: { $0.state.face == .waiting }) { return .waiting }
+            // Blocked with nothing blocked in it is the window's doing.
+            if blockedSessions.isEmpty, spentUsage != nil { return .spent }
+            return .stalled
         }
     }
 

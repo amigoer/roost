@@ -12,10 +12,6 @@ struct UsageMeters: View {
     let usage: Usage
     let strings: Strings
 
-    /// Past this, the useful number stops being how much is gone and starts
-    /// being when it comes back.
-    static let tight = 0.8
-
     private static let cells = 10
     private static let cellSize = CGSize(width: 3, height: 5)
     private static let cellGap: CGFloat = 1
@@ -35,7 +31,7 @@ struct UsageMeters: View {
                 // Nothing has reported for a while. One window instead of two,
                 // because what matters about a stale reading is less its second
                 // decimal than the hour it was taken.
-                meter(label(binding.label), binding.window, countdownWhenTight: false)
+                meter(strings.name(of: binding.label), binding.window, countdownWhenTight: false)
                 Text(strings.asOf(usage.reportedAt))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Brand.textTertiary)
@@ -44,10 +40,6 @@ struct UsageMeters: View {
         }
         .opacity(fresh ? 1 : 0.55)
         .frame(width: IslandGeometry.Footer.metersWidth, alignment: .trailing)
-    }
-
-    private func label(_ window: Usage.WindowLabel) -> String {
-        window == .fiveHour ? strings.fiveHour : strings.sevenDay
     }
 
     /// Only the five-hour window earns a countdown. The seven-day one resets on
@@ -64,7 +56,7 @@ struct UsageMeters: View {
 
             Text(trailing(window, turned: turned, countdownWhenTight: countdownWhenTight))
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(turned ? Brand.textTertiary : colour(window.used).swiftUI)
+                .foregroundStyle(turned ? Brand.textTertiary : Brand.usage(window.used).swiftUI)
                 .monospacedDigit()
                 .fixedSize()
         }
@@ -78,7 +70,7 @@ struct UsageMeters: View {
         return HStack(spacing: Self.cellGap) {
             ForEach(0..<Self.cells, id: \.self) { index in
                 Rectangle()
-                    .fill(index < filled ? colour(window.used).swiftUI : .white.opacity(0.12))
+                    .fill(index < filled ? Brand.usage(window.used).swiftUI : .white.opacity(0.12))
                     .frame(width: Self.cellSize.width, height: Self.cellSize.height)
             }
         }
@@ -89,17 +81,9 @@ struct UsageMeters: View {
         // The window came back while nobody was reporting. What has gone on it
         // since is unknown, and showing that as zero would be a guess.
         if turned { return strings.windowReset }
-        guard countdownWhenTight, window.used >= Self.tight,
+        guard countdownWhenTight, window.used >= Usage.tight,
               let remaining = window.remaining() else { return strings.percent(window.used) }
         return strings.resetsIn(Int(remaining))
-    }
-
-    private func colour(_ used: Double) -> NSColor {
-        switch used {
-        case ..<0.5: Brand.idleBadge
-        case ..<Self.tight: Brand.orange
-        default: Brand.red
-        }
     }
 }
 

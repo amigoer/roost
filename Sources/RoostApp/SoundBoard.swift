@@ -22,8 +22,10 @@ final class SoundBoard {
     /// Always called, switched on or not: an announcer that only sees some of
     /// the snapshots would chirp for a transition the user already watched
     /// happen while sound was off.
-    func observe(_ sessions: [Session]) {
-        guard let chirp = announcer.cue(for: sessions), isOn else { return }
+    func observe(_ sessions: [Session], spentWindow: Bool) {
+        let stopped = announcer.cue(for: sessions)
+        let spent = announcer.cue(forSpentWindow: spentWindow)
+        guard let chirp = stopped ?? spent, isOn else { return }
         play(chirp)
     }
 

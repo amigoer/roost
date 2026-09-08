@@ -56,6 +56,7 @@ struct IslandView: View {
                                      level: model.level,
                                      sessionCount: model.visibleSessions.count,
                                      blockedCount: model.blockedCount,
+                                     countdown: countdown,
                                      notchWidth: notchSize.width)
                 }
             }
@@ -64,6 +65,15 @@ struct IslandView: View {
             .animation(.spring(response: 0.32, dampingFraction: 0.72), value: model.level)
             .animation(.spring(response: 0.32, dampingFraction: 0.72), value: model.tier)
         }
+    }
+
+    /// What the collapsed island says instead of a count while a window is
+    /// spent: how long until it comes back, which is the only thing left to do
+    /// something about.
+    private var countdown: String? {
+        guard model.face == .spent, let remaining = model.spentUsage?.remaining()
+        else { return nil }
+        return strings.elapsed(Int(remaining))
     }
 
     // MARK: - Expanded
@@ -188,15 +198,32 @@ struct IslandView: View {
     }
 
     /// One line for the whole fleet, loudest fact first.
+    ///
+    /// A window about to run out sits above the count of what is running,
+    /// because it is what will stop all of it. It says when the window comes
+    /// back rather than how much has gone: past this point that is the only
+    /// half of the figure anybody can act on.
     @ViewBuilder
     private var headline: some View {
         if model.blockedCount > 0 {
             Text(strings.waitingCount(model.blockedCount)).foregroundStyle(model.face.colour.swiftUI)
+        } else if let tight = model.tightUsage {
+            Text(tightWindow(tight))
+                .foregroundStyle(Brand.usage(tight.window.used).swiftUI)
+                .monospacedDigit()
         } else if model.runningCount > 0 {
             Text(strings.runningCount(model.runningCount)).foregroundStyle(MascotFace.running.colour.swiftUI)
         } else {
             Text(strings.sessionCount(model.visibleSessions.count))
                 .foregroundStyle(Brand.textTertiary)
         }
+    }
+
+    private func tightWindow(_ tight: (label: Usage.WindowLabel, window: UsageWindow)) -> String {
+        let name = strings.name(of: tight.label)
+        guard let remaining = tight.window.remaining() else {
+            return "\(name) \(strings.percent(tight.window.used))"
+        }
+        return "\(name) · \(strings.resetsIn(Int(remaining)))"
     }
 }

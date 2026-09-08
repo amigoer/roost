@@ -15,6 +15,25 @@ public struct Announcer: Sendable {
     /// becomes one nobody keeps on.
     private var hasBaseline = false
 
+    private var wasSpent = false
+    /// The windows get their own baseline: one already spent when the app
+    /// opened is not news either.
+    private var hasUsageBaseline = false
+
+    /// A window that has just run out.
+    ///
+    /// The same chirp as a session stopping, because it is the same fact from
+    /// the other end: nothing will move again until you do something about it.
+    /// Once per crossing rather than once per refresh.
+    public mutating func cue(forSpentWindow spent: Bool) -> Chirp? {
+        defer { wasSpent = spent }
+        guard hasUsageBaseline else {
+            hasUsageBaseline = true
+            return nil
+        }
+        return spent && !wasSpent ? .waiting : nil
+    }
+
     public mutating func cue(for sessions: [Session]) -> Chirp? {
         var levels: [String: SignalLevel] = [:]
         var needsYou = false

@@ -15,6 +15,13 @@ enum MascotFace: String, CaseIterable, Sendable {
     case error
     /// Nothing to report: closed eyes, grey "z", grey body.
     case idle
+    /// The quota window is spent: grey body, red bar, eyes open.
+    ///
+    /// No new ink, only a combination none of the others use. Grey says nothing
+    /// is moving, red says it matters, and the two together are the one thing
+    /// neither `idle` nor `stalled` can say: awake, and walled in until a clock
+    /// says otherwise.
+    case spent
 }
 
 /// The mascot art, drawn from an editable grid.
@@ -109,6 +116,21 @@ enum PixelChick {
                 "....K.K........",
                 "...............",
             ]
+        case .spent:
+            [
+                "...BBBBB.......",
+                "..BBBBBBB..AAA.",
+                ".BBBBBBBBB.AAA.",
+                ".BBEBBBEBB.....",
+                "BBBEBKBEBBB....",
+                "BBBBBKBBBBB....",
+                ".BBBBBBBBB.....",
+                ".BBBBBBBBB.....",
+                "..BBBBBBB......",
+                "...BBBBB.......",
+                "....K.K........",
+                "...............",
+            ]
         case .idle:
             [
                 "...BBBBB...AAA.",
@@ -164,7 +186,9 @@ extension MascotFace {
         case .waiting: Brand.orange
         case .stalled, .error: Brand.red
         case .done: Brand.green
-        case .idle: Brand.idleBody
+        // Grey because nothing is running on it, not because nothing is wrong.
+        // The badge is what says which of those it is.
+        case .idle, .spent: Brand.idleBody
         }
     }
 
@@ -180,6 +204,9 @@ extension MascotFace {
         // A shade lighter than the grey body, so the z still reads.
         case .idle: Brand.idleBadge
         case .waiting, .stalled, .done, .error: colour
+        // The one face whose badge is not its body's colour: the body is grey
+        // because nothing is moving, and the badge is what makes that urgent.
+        case .spent: Brand.red
         }
     }
 }

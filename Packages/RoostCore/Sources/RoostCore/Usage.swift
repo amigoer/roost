@@ -116,6 +116,12 @@ public struct Usage: Codable, Sendable, Hashable {
 
     public enum WindowLabel: String, Sendable { case fiveHour, sevenDay }
 
+    /// Where a window stops being background and starts being the thing that
+    /// will stop the work. Past it the useful number is not how much has gone
+    /// but when it comes back, and the island says so where it says everything
+    /// else that is about to need a person.
+    public static let tight = 0.8
+
     /// A figure only describes the present for so long. Nothing writes a status
     /// line once the last session closes, and a poll can fail for an hour.
     ///

@@ -106,7 +106,7 @@ final class MascotNSView: NSView {
             art.add(hop(cell: cell, from: art.position.y), forKey: "hop")
         case .waiting, .stalled:
             badge.add(blink(), forKey: "blink")
-        case .done, .error, .idle:
+        case .done, .error, .idle, .spent:
             break
         }
     }

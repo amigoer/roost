@@ -49,9 +49,7 @@ public actor SessionScanner {
                 entrypoint: entry.entrypoint,
                 model: known?.modelLabel,
                 permissionMode: known?.permissionMode,
-                opensWithoutCopying: SessionLink.resumeIsSafe(
-                    knownToDesktop: known != nil,
-                    hasImportedCopy: known?.hasImportedCopy == true),
+                knownToDesktop: known != nil,
                 startedAt: entry.startedAt,
                 state: state,
                 stateSince: stateSince[entry.sessionId] ?? now,

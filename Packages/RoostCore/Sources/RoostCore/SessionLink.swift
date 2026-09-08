@@ -13,16 +13,28 @@ import Foundation
 /// "code entry deep link gated off" and does nothing else. Sending those is how
 /// a click used to end up merely raising the app.
 public enum SessionLink {
+    /// Sessions the desktop app starts itself. It files its own record for
+    /// these under an id of its own, which is what makes a later import land
+    /// beside the original rather than on it.
+    static let desktopEntrypoint = "claude-desktop"
+
     /// Whether opening this session would leave a second entry behind.
     ///
     /// Resuming is right for a session the desktop app has never seen -- that
-    /// is how a terminal session gets there in the first place. It is also free
-    /// for one it has already imported. It is only wrong for a session the app
-    /// started itself, where the import lands beside the original instead of on
-    /// it, and nothing on offer can focus that original: the two routes that
-    /// take the app's own id are gated off.
-    public static func resumeIsSafe(knownToDesktop: Bool, hasImportedCopy: Bool) -> Bool {
-        !knownToDesktop || hasImportedCopy
+    /// is how a terminal session gets there in the first place -- and free for
+    /// one it has already imported, where the import is found rather than made.
+    ///
+    /// `knownToDesktop` comes from a scan of the store, so a conversation
+    /// started seconds ago is not in it yet. The entrypoint is the guard for
+    /// that window: it comes from the session's own registry file, is there the
+    /// moment the session is, and says who started it. Without it, clicking a
+    /// brand new desktop conversation duplicated it.
+    public static func resumeIsSafe(entrypoint: String?,
+                                    knownToDesktop: Bool,
+                                    hasImportedCopy: Bool) -> Bool {
+        if hasImportedCopy { return true }
+        if knownToDesktop { return false }
+        return entrypoint?.hasPrefix(desktopEntrypoint) != true
     }
 
     public static func resume(cliSessionId: String) -> URL? {

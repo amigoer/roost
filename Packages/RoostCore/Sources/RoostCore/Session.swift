@@ -11,9 +11,8 @@ public struct Session: Sendable, Identifiable, Hashable {
     public let model: String?
     /// How the session answers permission prompts, when it is known.
     public let permissionMode: String?
-    /// Whether opening this session can focus it without leaving a second
-    /// entry in the desktop app's list.
-    public let opensWithoutCopying: Bool
+    /// Whether the desktop app's store already has a record for this session.
+    public let knownToDesktop: Bool
     public let startedAt: Date
     public var state: SessionState
     /// When the session entered its current state, for escalation timing.
@@ -44,7 +43,7 @@ public struct Session: Sendable, Identifiable, Hashable {
 
     public init(id: String, pid: pid_t, name: String, cwd: String, entrypoint: String?,
                 model: String? = nil, permissionMode: String? = nil,
-                opensWithoutCopying: Bool = true,
+                knownToDesktop: Bool = false,
                 startedAt: Date, state: SessionState, stateSince: Date,
                 activity: String?, detail: String? = nil, lastActivityAt: Date) {
         self.id = id
@@ -54,7 +53,7 @@ public struct Session: Sendable, Identifiable, Hashable {
         self.entrypoint = entrypoint
         self.model = model
         self.permissionMode = permissionMode
-        self.opensWithoutCopying = opensWithoutCopying
+        self.knownToDesktop = knownToDesktop
         self.startedAt = startedAt
         self.state = state
         self.stateSince = stateSince

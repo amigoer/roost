@@ -6,10 +6,17 @@ enum SessionActivator {
     private static let bundleID = "com.anthropic.claudefordesktop"
 
     static func activate(_ session: Session) {
+        // Asked here rather than carried on the session: a conversation
+        // started seconds ago is not in the last scan, and getting this wrong
+        // duplicates it.
+        let safe = SessionLink.resumeIsSafe(
+            entrypoint: session.entrypoint,
+            knownToDesktop: session.knownToDesktop,
+            hasImportedCopy: DesktopSessions.hasImportedCopy(cliSessionId: session.id))
+
         // Raising the app is a poor answer, but it is the only one that does
         // not leave a duplicate conversation behind.
-        guard session.opensWithoutCopying,
-              let url = SessionLink.resume(cliSessionId: session.id) else {
+        guard safe, let url = SessionLink.resume(cliSessionId: session.id) else {
             raiseApp()
             return
         }

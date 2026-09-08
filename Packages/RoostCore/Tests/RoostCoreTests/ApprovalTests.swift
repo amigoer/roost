@@ -269,19 +269,30 @@ final class SessionLinkTests: XCTestCase {
 final class ResumeSafetyTests: XCTestCase {
     /// A terminal session is not in the desktop app at all, so importing it is
     /// the whole point rather than a duplicate.
-    func testAnUnknownSessionIsSafeToResume() {
-        XCTAssertTrue(SessionLink.resumeIsSafe(knownToDesktop: false, hasImportedCopy: false))
+    func testATerminalSessionIsSafeToResume() {
+        XCTAssertTrue(SessionLink.resumeIsSafe(entrypoint: "cli", knownToDesktop: false,
+                                               hasImportedCopy: false))
     }
 
     /// The app dedupes on `local_<cli id>`, so the second resume finds the
     /// first one's import and adds nothing.
     func testAnAlreadyImportedSessionIsSafeToResume() {
-        XCTAssertTrue(SessionLink.resumeIsSafe(knownToDesktop: true, hasImportedCopy: true))
+        XCTAssertTrue(SessionLink.resumeIsSafe(entrypoint: "claude-desktop", knownToDesktop: true,
+                                               hasImportedCopy: true))
     }
 
-    /// The one case that must not fire: the app started this session under an
-    /// id of its own, and the import would land beside it.
+    /// The app started this one under an id of its own; the import would land
+    /// beside it.
     func testASessionTheAppStartedIsNotSafeToResume() {
-        XCTAssertFalse(SessionLink.resumeIsSafe(knownToDesktop: true, hasImportedCopy: false))
+        XCTAssertFalse(SessionLink.resumeIsSafe(entrypoint: "claude-desktop", knownToDesktop: true,
+                                                hasImportedCopy: false))
+    }
+
+    /// The case that shipped broken: a conversation started seconds ago is not
+    /// in the last scan of the store, so the scan says "unknown" and the
+    /// entrypoint is the only thing that knows better.
+    func testABrandNewDesktopSessionIsNotSafeToResume() {
+        XCTAssertFalse(SessionLink.resumeIsSafe(entrypoint: "claude-desktop", knownToDesktop: false,
+                                                hasImportedCopy: false))
     }
 }

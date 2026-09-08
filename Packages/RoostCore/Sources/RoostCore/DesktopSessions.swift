@@ -49,6 +49,20 @@ public enum DesktopSessions {
             .appending(path: "Library/Application Support/Claude/claude-code-sessions")
     }
 
+    /// Whether the app already holds an import of this session, asked fresh.
+    ///
+    /// The copy's file name is derived from the CLI id, so this needs no
+    /// parsing and is cheap enough to ask at the moment of a click -- which is
+    /// the only moment whose answer is not already out of date.
+    public static func hasImportedCopy(cliSessionId: String,
+                                       in directory: URL = defaultDirectory()) -> Bool {
+        guard let walker = FileManager.default.enumerator(
+            at: directory, includingPropertiesForKeys: nil) else { return false }
+        let name = "local_\(cliSessionId).json"
+        for case let url as URL in walker where url.lastPathComponent == name { return true }
+        return false
+    }
+
     /// Keyed by CLI session id: the store keys by its own id and carries
     /// `cliSessionId` as the join back to the transcripts.
     ///

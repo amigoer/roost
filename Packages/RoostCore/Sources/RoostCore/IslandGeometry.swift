@@ -19,6 +19,18 @@ public enum IslandGeometry {
 
     public enum ApprovalHit: Sendable { case allow, deny }
 
+    /// The collapsed strip, measured from the cutout outwards.
+    ///
+    /// Both flanks carry the same slot so the island stays symmetric whatever
+    /// is standing in them, and the numbers are tight: at rest this is a strip
+    /// hugging the cutout, not a bar with the cutout somewhere inside it.
+    public enum Collapsed {
+        public static let slot: CGFloat = 20
+        public static let gap: CGFloat = 9
+        public static let margin: CGFloat = 6
+        public static let flank: CGFloat = slot + gap + margin
+    }
+
     /// The menu button in the header.
     ///
     /// The app has no Dock icon and no menu bar item, so without something
@@ -81,12 +93,12 @@ public enum IslandGeometry {
         case .dormant:
             notch
         case .running, .done:
-            CGSize(width: notch.width + 78, height: notch.height)
+            CGSize(width: notch.width + 2 * Collapsed.flank, height: notch.height)
         case .blocked:
             // Escalation grows width only. Height stays flush with the cutout so
             // the island never hangs below the menu bar, and widening happens to
             // be the lever peripheral-display research favours anyway.
-            CGSize(width: notch.width + (tier == .calm ? 104 : 132),
+            CGSize(width: notch.width + 2 * (Collapsed.flank + (tier == .calm ? 13 : 27)),
                    height: notch.height)
         }
     }

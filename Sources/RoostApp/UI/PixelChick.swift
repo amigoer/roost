@@ -25,6 +25,9 @@ enum MascotFace: String, CaseIterable, Sendable {
 /// `S` sweat drop, `.` transparent.
 enum PixelChick {
     static let columns = 15
+    /// The chick alone. The remaining columns are the badge's, and they are
+    /// empty in some faces, so this is what has to stay put from face to face.
+    static let bodyColumns = 11
     static let rows = 12
     /// A spare row above the grid, so the running hop has somewhere to go.
     static let hopRoom = 1
@@ -122,6 +125,12 @@ enum PixelChick {
                 "...............",
             ]
         }
+    }
+
+    /// How far to nudge the canvas so the body, rather than the whole grid,
+    /// sits in the middle of whatever slot it is given.
+    static func bodyCentringOffset(cell: CGFloat) -> CGFloat {
+        CGFloat(columns - bodyColumns) / 2 * cell
     }
 
     /// Cells of one kind, as a path of square pixels.

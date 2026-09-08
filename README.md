@@ -153,14 +153,19 @@ The code enforces these, and the comments say so:
 ## Interaction
 
 - **Hover** the notch to expand the list (up to 6 rows).
-- **Click a row** to bring the desktop app forward. It cannot yet land on the
-  conversation itself, and that is the honest state of things rather than a
-  design decision. Of the three routes in, two — `code/continue` and
-  `code/needs-input` — take the app's own `local_` id and sit behind an account
-  gate that logs `code entry deep link gated off` and does nothing else. The
-  third, `claude://resume`, reopens a *finished* conversation: pointed at a
-  running one it starts a second process against the same transcript, and every
-  session listed here is running.
+- **Click a row** to open that conversation, via `claude://resume?session=…` —
+  the one route in that works from outside. What it does turns entirely on the
+  id it is handed: it puts `local_` back on the front and focuses the record it
+  finds under that id. The desktop app's own id for a conversation lands on the
+  original. A CLI session id matches nothing for a conversation the app started,
+  so it imports the transcript as a second entry beside it — and that copy is a
+  session of its own, which holds a second process against the same transcript
+  once opened. Roost sends the app's own id whenever there is one, and the CLI
+  id only where there is no record at all: a session started in a terminal,
+  where the import is how it reaches the app in the first place.
+- The other two routes, `code/continue` and `code/needs-input`, take the app's
+  own id too but sit behind an account gate that logs `code entry deep link
+  gated off` and does nothing else.
 - **Click Deny or Allow** on a held tool call. The island stays open on its own
   while one is waiting, so answering never depends on the cursor being there.
 - **Click the gear** in the panel's top-right for settings. Right-clicking the

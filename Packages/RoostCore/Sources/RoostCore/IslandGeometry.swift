@@ -163,8 +163,10 @@ public enum IslandGeometry {
         public static let height: CGFloat = 24
         public static let inset: CGFloat = 12
         /// The meters keep this width whatever they are showing, so the hover
-        /// target does not move as a figure gains or loses a digit.
-        public static let metersWidth: CGFloat = 176
+        /// target does not move as a figure gains or loses a digit. Sized for
+        /// the widest either window gets -- two three-digit figures in Chinese,
+        /// or two windows saying they have turned over.
+        public static let metersWidth: CGFloat = 200
     }
 
     public static func footerTop(notch: CGSize, rowCount: Int, heldHeight: CGFloat = 0) -> CGFloat {

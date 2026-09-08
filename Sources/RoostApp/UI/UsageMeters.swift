@@ -21,17 +21,13 @@ struct UsageMeters: View {
     var body: some View {
         HStack(spacing: 9) {
             if fresh {
-                if let window = usage.fiveHour {
-                    meter(strings.fiveHour, window, countdownWhenTight: true)
-                }
-                if let window = usage.sevenDay {
-                    meter(strings.sevenDay, window, countdownWhenTight: false)
-                }
+                if let window = usage.fiveHour { meter(strings.fiveHour, window) }
+                if let window = usage.sevenDay { meter(strings.sevenDay, window) }
             } else if let binding = usage.binding {
                 // Nothing has reported for a while. One window instead of two,
                 // because what matters about a stale reading is less its second
                 // decimal than the hour it was taken.
-                meter(strings.name(of: binding.label), binding.window, countdownWhenTight: false)
+                meter(strings.name(of: binding.label), binding.window)
                 Text(strings.asOf(usage.reportedAt))
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(Brand.textTertiary)
@@ -42,10 +38,10 @@ struct UsageMeters: View {
         .frame(width: IslandGeometry.Footer.metersWidth, alignment: .trailing)
     }
 
-    /// Only the five-hour window earns a countdown. The seven-day one resets on
-    /// a horizon nobody is waiting out, and two countdowns do not fit anyway.
-    private func meter(_ label: String, _ window: UsageWindow,
-                       countdownWhenTight: Bool) -> some View {
+    /// Always a percentage, never a countdown. When a window is tight enough
+    /// for "when does it come back" to be the better number, the header says
+    /// so, and saying it twice on one panel is saying it once with an echo.
+    private func meter(_ label: String, _ window: UsageWindow) -> some View {
         let turned = usage.hasReset(window)
         return HStack(spacing: 4) {
             Text(label)
@@ -54,7 +50,7 @@ struct UsageMeters: View {
 
             track(window, emptied: turned)
 
-            Text(trailing(window, turned: turned, countdownWhenTight: countdownWhenTight))
+            Text(turned ? strings.windowReset : strings.percent(window.used))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(turned ? Brand.textTertiary : Brand.usage(window.used).swiftUI)
                 .monospacedDigit()
@@ -62,6 +58,10 @@ struct UsageMeters: View {
         }
     }
 
+    /// Emptied when the window has turned over since the reading was taken:
+    /// what has gone on it since is unknown, and drawing that as zero would be
+    /// a guess rather than a gap.
+    ///
     /// Rounded up, so a window somebody has started spending never reads as
     /// untouched: the first cell is the difference between "none yet" and
     /// "begun", and that is the one comparison this is for.
@@ -74,16 +74,6 @@ struct UsageMeters: View {
                     .frame(width: Self.cellSize.width, height: Self.cellSize.height)
             }
         }
-    }
-
-    private func trailing(_ window: UsageWindow, turned: Bool,
-                          countdownWhenTight: Bool) -> String {
-        // The window came back while nobody was reporting. What has gone on it
-        // since is unknown, and showing that as zero would be a guess.
-        if turned { return strings.windowReset }
-        guard countdownWhenTight, window.used >= Usage.tight,
-              let remaining = window.remaining() else { return strings.percent(window.used) }
-        return strings.resetsIn(Int(remaining))
     }
 }
 

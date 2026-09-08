@@ -71,13 +71,14 @@ final class QuestionParsingTests: XCTestCase {
         ])))
     }
 
-    /// No permission setting answers a question: `bypassPermissions` skips
-    /// prompts, it does not decide which deploy target you meant.
-    func testAQuestionIsHeldInEveryMode() {
-        for mode in [nil, "default", "acceptEdits", "auto", "bypassPermissions", "plan"] {
-            XCTAssertTrue(ApprovalGate.shouldAsk(tool: "AskUserQuestion", permissionMode: mode),
-                          "mode \(mode ?? "nil")")
-        }
+    /// No permission event fires for a question, so it reaches the island
+    /// through `PreToolUse` and is claimed there by name.
+    func testAQuestionIsClaimedFromPreToolUse() {
+        XCTAssertTrue(ApprovalGate.asks.contains("AskUserQuestion"))
+        XCTAssertNotNil(ApprovalGate.ask(tool: "AskUserQuestion", input: [
+            "questions": [["question": "Which one?",
+                           "options": [["label": "a"], ["label": "b"]]]],
+        ]))
     }
 
     func testTheRowSaysTheSessionAskedRatherThanNeedsPermission() {

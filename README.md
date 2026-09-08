@@ -72,34 +72,36 @@ one more icon up there is the clutter this app exists to remove.
 ## Answering from the island
 
 A permission prompt can be answered without leaving what you were doing. Roost
-installs a `PreToolUse` hook; Claude Code holds the tool call while the hook
-asks Roost, and the island shows the call with **Deny** and **Allow**.
+installs a `PermissionRequest` hook; Claude Code holds the tool call while the
+hook asks Roost, and the island shows the call with **Deny** and **Allow**.
 
 <img src="docs/approval.png" alt="A held Bash call, with Deny and Allow">
 
 Turn it on in Settings — *Answer permission prompts in the island*. That adds
-one entry to `~/.claude/settings.json` pointing at the `roost-hook`
-binary inside the app bundle. The same switch takes it back out, and hooks that are
-not Roost's are never touched.
+two entries to `~/.claude/settings.json` pointing at the `roost-hook`
+binary inside the app bundle. The same switch takes both back out, and hooks that
+are not Roost's are never touched.
 
 Failure is deliberately boring. If Roost is not running, if the socket is gone,
 if nobody answers within 60 seconds — the hook prints nothing and the session
 prompts exactly as it always did. This can make a tool call wait. It cannot
 change what one does.
 
-| Tool | Held? |
+| Event | Carries |
 |:--|:--|
-| `Read`, `Grep`, `Glob`, `TodoWrite`, … | Never. Filtered inside the hook, so the common path never pays for a round trip. |
-| `Bash`, `WebFetch`, `mcp__*`, everything else | Held only where a prompt would really have appeared: a session in `default` mode, or one whose mode nothing on disk records. `auto` — the desktop app's own default — along with `bypassPermissions` and `plan`, answers for itself. |
-| `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | Held only in `default` mode. An accept-edits session has answered already. |
-| `AskUserQuestion`, `ExitPlanMode` | Always, in every mode. No permission setting answers a question or judges a plan. |
+| `PermissionRequest` | Every tool call that was about to raise a prompt — whatever the tool, whatever the session's permission mode. Nothing else ever fires it. |
+| `PreToolUse` | Only `AskUserQuestion` and `ExitPlanMode`: the two calls that stop a session without being permissions at all, which no permission event fires for. Every other call it brings is dropped inside the hook, so the common path costs one set lookup and no round trip. |
 
-The mode is read at the moment of the call rather than taken from the last
-scan: first from the session's own transcript, which records the mode of every
-turn and of every switch made during one, and failing that from the desktop
-app's record. A card for a call that was never going to be prompted is worse
-than no card at all — it is an interruption, and from the outside it is
-indistinguishable from a prompt that was real.
+`PermissionRequest` runs where a prompt is about to appear and nowhere else, so
+whatever reaches the island *was* a prompt. There is nothing to work out and
+nothing to filter.
+
+Earlier versions had only `PreToolUse`, which fires for every call whether it
+would have prompted or not, and made up the difference by reading each session's
+permission mode off disk — from the transcript, which records the mode of every
+turn, and failing that from the desktop app's record — and guessing from it.
+That guess is gone, and with it the whole class of cards for calls nobody was
+ever going to be asked about.
 
 While a call is held, the row for that session says so instead of reading as
 busy: **needs permission: Bash**, or **Explore needs input** when the call came
@@ -143,14 +145,15 @@ Codex speaks the same hook protocol — the same event names, the same payload
 fields, a hooks file in a different place — so the same helper serves it, told
 which agent it is standing in for. Turn it on under *Agents*.
 
-Two differences shape what that gets you. Codex has a `PermissionRequest` event
-that fires only where a prompt was really about to appear, so there is no
-permission mode to weigh: the event **is** the prompt, the card goes up as it
-arrives, and the answer goes back in the shape Codex asks for. And Codex writes
-no registry of live sessions and no transcript that says what is happening now,
-so a row for one is assembled from the events it announces — started, prompted,
-reached for a tool, finished — rather than read off disk. A tool call with
-nothing after it goes stalled on the same grace period a transcript would.
+Permissions work identically: the same `PermissionRequest` event, the same card,
+an answer in the same `{"behavior": …}` shape. Codex has no `AskUserQuestion` and
+no plan mode, so its `PreToolUse` is spent on something else entirely.
+
+What differs is everything around it. Codex writes no registry of live sessions
+and no transcript that says what is happening *now*, so a row for one is
+assembled from the events it announces — started, prompted, reached for a tool,
+finished — rather than read off disk. A tool call with nothing after it goes
+stalled on the same grace period a transcript would.
 
 ## How it reads state
 

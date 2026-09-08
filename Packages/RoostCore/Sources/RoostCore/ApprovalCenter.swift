@@ -9,16 +9,6 @@ public final class ApprovalCenter {
 
     public private(set) var pending: [ApprovalRequest] = []
 
-    /// Looks up a session's permission mode. A tool that would not have
-    /// prompted must not produce a card: an interruption nobody asked for is
-    /// worse than a missed chance to approve early.
-    ///
-    /// Asked at the moment of a hold, and allowed to take its time about it:
-    /// a mode read minutes ago describes a session that may have changed it
-    /// since, and being wrong here is what puts a card on screen for a call
-    /// nobody was ever going to be asked about.
-    @ObservationIgnored public var permissionMode: ((String) async -> String?)?
-
     /// Called the moment a call is actually held, for anything that has to
     /// react to it sooner than the next scan does.
     @ObservationIgnored public var onHold: ((ApprovalRequest) -> Void)?
@@ -29,17 +19,14 @@ public final class ApprovalCenter {
     /// has been stopped the longest.
     public var current: ApprovalRequest? { pending.first }
 
+    /// Everything that arrives here is held.
+    ///
+    /// Nothing is weighed on the way in any more: the helper only sends calls
+    /// an agent was really about to prompt about, so a card here is a prompt
+    /// there. What used to sit in this method -- reading a session's permission
+    /// mode off disk to guess whether the prompt was real -- is what the
+    /// `PermissionRequest` event replaced.
     public func handle(_ request: ApprovalRequest) async -> ApprovalReply {
-        // A question is held in every mode, and an agent whose hook fires only
-        // where a prompt would really have appeared has already decided. Both
-        // would only be a disk hit on the way to the same answer.
-        if case .permission = request.kind, !request.source.promptsAreExact {
-            guard await ApprovalGate.shouldAsk(
-                tool: request.tool,
-                permissionMode: permissionMode?(request.sessionId)) else {
-                return ApprovalReply(decision: .ask)
-            }
-        }
         pending.append(request)
         onHold?(request)
         return await withCheckedContinuation { continuation in

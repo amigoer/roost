@@ -5,15 +5,10 @@ public struct DesktopSession: Sendable, Hashable {
     public let title: String?
     /// Raw model id, e.g. `claude-opus-4-6`.
     public let model: String?
-    /// `auto` -- the desktop app's own default -- or `default`, `acceptEdits`,
-    /// `plan`, `bypassPermissions`. Decides whether a tool would have raised a
-    /// prompt at all.
-    public let permissionMode: String?
 
-    public init(title: String?, model: String?, permissionMode: String?) {
+    public init(title: String?, model: String?) {
         self.title = title
         self.model = model
-        self.permissionMode = permissionMode
     }
 
     /// Short enough for a row: "claude-sonnet-4-5-20250929" -> "Sonnet 4.5".
@@ -94,9 +89,7 @@ public enum DesktopSessions {
             if isCopy, result[cliId] != nil { continue }
 
             let title = (json["title"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-            result[cliId] = DesktopSession(title: title,
-                                           model: json["model"] as? String,
-                                           permissionMode: json["permissionMode"] as? String)
+            result[cliId] = DesktopSession(title: title, model: json["model"] as? String)
         }
         return result
     }

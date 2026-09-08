@@ -72,11 +72,14 @@ public enum HookInstall {
 
     // MARK: - Whole agents
 
-    /// Everything one agent needs, in one write: the event that waits for an
+    /// Everything one agent needs, in one write: the events that wait for an
     /// answer, plus the ones that only say where a session got to.
     public static func adding(agent: AgentKind, command: String,
                               to settings: [String: Any]) -> [String: Any] {
-        var settings = adding(command: command, to: settings, event: agent.permissionEvent)
+        var settings = settings
+        for event in agent.answerEvents {
+            settings = adding(command: command, to: settings, event: event)
+        }
         for event in agent.lifecycleEvents {
             settings = adding(command: command, to: settings, event: event,
                               timeout: reportTimeout)
@@ -84,9 +87,12 @@ public enum HookInstall {
         return settings
     }
 
+    /// True as soon as *any* of the answer events is wired up, so a file
+    /// written by a version that installed fewer of them still reads as on.
+    /// Adding the rest is then a repair rather than a decision.
     public static func isInstalled(agent: AgentKind, command: String,
                                    in settings: [String: Any]) -> Bool {
-        isInstalled(settings, command: command, event: agent.permissionEvent)
+        agent.answerEvents.contains { isInstalled(settings, command: command, event: $0) }
     }
 
     // MARK: - Disk

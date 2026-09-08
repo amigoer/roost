@@ -11,7 +11,9 @@ final class AgentHookInstallTests: XCTestCase {
     func testCodexGetsThePromptEventAndEveryLifecycleOne() {
         let settings = HookInstall.adding(agent: .codex, command: command, to: [:])
         let installed = hooks(settings)
-        XCTAssertNotNil(installed[AgentKind.codex.permissionEvent])
+        for event in AgentKind.codex.answerEvents {
+            XCTAssertNotNil(installed[event], event)
+        }
         for event in AgentKind.codex.lifecycleEvents {
             XCTAssertNotNil(installed[event], event)
         }
@@ -27,7 +29,7 @@ final class AgentHookInstallTests: XCTestCase {
             let entry = try XCTUnwrap((groups.first?["hooks"] as? [[String: Any]])?.first)
             return try XCTUnwrap(entry["timeout"] as? Int)
         }
-        XCTAssertEqual(try timeout(AgentKind.codex.permissionEvent), HookInstall.hookTimeout)
+        XCTAssertEqual(try timeout("PermissionRequest"), HookInstall.hookTimeout)
         XCTAssertEqual(try timeout("SessionStart"), HookInstall.reportTimeout)
         XCTAssertLessThan(HookInstall.reportTimeout, HookInstall.hookTimeout)
     }
@@ -59,12 +61,33 @@ final class AgentHookInstallTests: XCTestCase {
         XCTAssertEqual(groups.count, 1)
     }
 
-    /// Claude Code's PreToolUse fires for every call, so the mode still has to
-    /// be read there. Codex's PermissionRequest is the prompt itself.
-    func testOnlyCodexIsTakenAtItsWord() {
-        XCTAssertTrue(AgentKind.codex.promptsAreExact)
-        XCTAssertFalse(AgentKind.claudeCode.promptsAreExact)
+    /// Both agents hold permissions through the event that *is* the prompt.
+    /// Claude Code carries one more, because a question and a plan stop a
+    /// session without any permission event firing for them.
+    func testBothAgentsHoldPermissionsThroughTheSameEvent() {
+        XCTAssertTrue(AgentKind.codex.answerEvents.contains("PermissionRequest"))
+        XCTAssertTrue(AgentKind.claudeCode.answerEvents.contains("PermissionRequest"))
+        XCTAssertTrue(AgentKind.claudeCode.answerEvents.contains("PreToolUse"))
+        XCTAssertFalse(AgentKind.codex.answerEvents.contains("PreToolUse"))
+    }
+
+    /// Claude Code writes a registry and transcripts of its own, so a reported
+    /// row for one would be a duplicate of a row already on screen.
+    func testOnlyAnAgentWithNoRegistryReportsItself() {
         XCTAssertTrue(AgentKind.claudeCode.lifecycleEvents.isEmpty)
+        XCTAssertFalse(AgentKind.codex.lifecycleEvents.isEmpty)
+    }
+
+    /// An install written before the permission event existed has the switch
+    /// on and half the wiring, so it has to read as on and then be repaired.
+    func testAnOlderInstallStillReadsAsOn() {
+        let older = HookInstall.adding(command: command, to: [:], event: "PreToolUse")
+        XCTAssertTrue(HookInstall.isInstalled(agent: .claudeCode, command: command, in: older))
+
+        let repaired = HookInstall.adding(agent: .claudeCode, command: command, to: older)
+        XCTAssertTrue(HookInstall.isInstalled(repaired, command: command,
+                                              event: "PermissionRequest"))
+        XCTAssertTrue(HookInstall.isInstalled(repaired, command: command, event: "PreToolUse"))
     }
 }
 
@@ -173,30 +196,46 @@ final class ReportedSessionTests: XCTestCase {
     }
 }
 
-@MainActor
-final class ExactPromptTests: XCTestCase {
-    /// Codex only fires its permission event where a prompt was about to
-    /// appear, so no mode of its own can talk Roost out of showing the card.
-    func testACodexPromptIsHeldWithoutAskingAboutTheMode() async {
-        let center = ApprovalCenter()
-        center.permissionMode = { _ in "bypassPermissions" }
-        let held = ApprovalRequest(sessionId: "abc", cwd: "/tmp/perch", tool: "shell",
-                                   detail: "npm test", source: .codex)
-        let answered = Task { await center.handle(held) }
-        try? await Task.sleep(for: .milliseconds(30))
-
-        XCTAssertEqual(center.current?.id, held.id)
-        center.decide(held.id, .allow)
-        let reply = await answered.value
-        XCTAssertEqual(reply.decision, .allow)
+final class HookOutputTests: XCTestCase {
+    private func body(_ reply: ApprovalReply, _ event: String) -> [String: Any] {
+        HookOutput.body(reply, for: event)["hookSpecificOutput"] as? [String: Any] ?? [:]
     }
 
-    func testTheSameCallFromClaudeCodeStillAsksAboutTheMode() async {
-        let center = ApprovalCenter()
-        center.permissionMode = { _ in "bypassPermissions" }
-        let held = ApprovalRequest(sessionId: "s", cwd: "/tmp/perch", tool: "Bash", detail: "ls")
-        let reply = await center.handle(held)
-        XCTAssertEqual(reply.decision, .ask)
-        XCTAssertTrue(center.pending.isEmpty)
+    /// The documented form is `{"behavior": "allow"}`. Getting this wrong is
+    /// silent: the agent rejects the output and prompts as it always did.
+    func testAPermissionRequestAnswerIsAVerdictObject() throws {
+        let output = body(ApprovalReply(decision: .allow, reason: "Allowed from the island"),
+                          "PermissionRequest")
+        XCTAssertEqual(output["hookEventName"] as? String, "PermissionRequest")
+        let verdict = try XCTUnwrap(output["decision"] as? [String: Any])
+        XCTAssertEqual(verdict["behavior"] as? String, "allow")
+        // The allow form carries no message, so none is sent.
+        XCTAssertNil(verdict["message"])
+    }
+
+    func testADenialCarriesTheReasonThatExplainsIt() throws {
+        let output = body(ApprovalReply(decision: .deny, reason: "Denied from the island"),
+                          "PermissionRequest")
+        let verdict = try XCTUnwrap(output["decision"] as? [String: Any])
+        XCTAssertEqual(verdict["behavior"] as? String, "deny")
+        XCTAssertEqual(verdict["message"] as? String, "Denied from the island")
+    }
+
+    /// PreToolUse takes the older shape, and its reason is the only thing a
+    /// session reads back -- which is what makes it the way to answer a
+    /// question or send a plan back.
+    func testPreToolUseKeepsItsOwnShape() {
+        let output = body(.answer("Luxon"), "PreToolUse")
+        XCTAssertEqual(output["hookEventName"] as? String, "PreToolUse")
+        XCTAssertEqual(output["permissionDecision"] as? String, "deny")
+        XCTAssertEqual((output["permissionDecisionReason"] as? String)?.contains("Luxon"), true)
+        XCTAssertNil(output["decision"])
+    }
+
+    func testEveryAnswerSerialises() {
+        for event in ["PermissionRequest", "PreToolUse"] {
+            XCTAssertNotNil(HookOutput.data(.approvePlan, for: event), event)
+            XCTAssertNotNil(HookOutput.data(.revisePlan, for: event), event)
+        }
     }
 }

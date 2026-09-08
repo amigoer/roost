@@ -14,12 +14,6 @@ public actor SessionScanner {
     /// change, so re-reading them on every scan was measurable CPU for nothing.
     private static let desktopRefreshInterval: TimeInterval = 30
 
-    /// Deciding whether to hold a tool call is worth paying that read for: a
-    /// conversation started since the last one is not in it at all, and a mode
-    /// switched a moment ago is the difference between a card that belongs on
-    /// screen and one that interrupts for nothing.
-    private static let desktopDecisionAge: TimeInterval = 2
-
     private var desktop: [String: DesktopSession] = [:]
     private var desktopReadAt: Date = .distantPast
     private var transcriptCache: [String: Cached] = [:]
@@ -68,20 +62,6 @@ public actor SessionScanner {
         lastStates = lastStates.filter { live.contains($0.key) }
 
         return Session.ordered(sessions)
-    }
-
-    /// How a session answers permission prompts, asked at the moment a tool
-    /// call is about to be held.
-    ///
-    /// The transcript comes first: it carries the mode of the last turn and of
-    /// any switch made during one, and it is the only record a session started
-    /// in a terminal leaves at all. The desktop store answers for the rest --
-    /// a session whose last turn has scrolled out of the tail, or one opened
-    /// since the last read of it.
-    public func permissionMode(for sessionId: String, now: Date = Date()) -> String? {
-        if let mode = facts(for: sessionId)?.permissionMode { return mode }
-        refreshDesktop(now: now, olderThan: Self.desktopDecisionAge)
-        return desktop[sessionId]?.permissionMode
     }
 
     private func refreshDesktop(now: Date, olderThan age: TimeInterval) {

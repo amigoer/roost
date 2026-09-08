@@ -18,20 +18,6 @@ public enum AgentKind: String, Codable, Sendable, Hashable, CaseIterable {
         }
     }
 
-    /// Whether this agent's hook fires only where a prompt would really have
-    /// appeared.
-    ///
-    /// Claude Code's `PreToolUse` fires for every call, so Roost has to read
-    /// the session's permission mode to work out which of them would have been
-    /// asked about. Codex has a `PermissionRequest` event that *is* the prompt,
-    /// which is both exact and cheaper.
-    public var promptsAreExact: Bool {
-        switch self {
-        case .claudeCode: false
-        case .codex: true
-        }
-    }
-
     /// Where this agent keeps its hooks.
     public var hooksURL: URL {
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -41,11 +27,19 @@ public enum AgentKind: String, Codable, Sendable, Hashable, CaseIterable {
         }
     }
 
-    /// The event that waits on an answer.
-    public var permissionEvent: String {
+    /// The events that hold a session while the island answers.
+    ///
+    /// `PermissionRequest` runs where a permission prompt is about to appear
+    /// and nowhere else, so it is the whole of the permission story: nothing
+    /// has to be inferred about which calls would have been asked about.
+    ///
+    /// `PreToolUse` stays for the two calls that stop a session without being
+    /// permissions at all -- a question and a plan -- because no permission
+    /// event fires for either.
+    public var answerEvents: [String] {
         switch self {
-        case .claudeCode: "PreToolUse"
-        case .codex: "PermissionRequest"
+        case .claudeCode: ["PermissionRequest", "PreToolUse"]
+        case .codex: ["PermissionRequest"]
         }
     }
 

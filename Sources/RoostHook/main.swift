@@ -1,10 +1,10 @@
 import Foundation
 import RoostCore
 
-// One binary, three jobs, told apart by the arguments Roost wrote into the
-// settings file it installed itself into: hold a Claude Code tool call for an
-// answer, do the same for another agent and report where its sessions get to,
-// or forward what a status line was told about the quota windows.
+// One binary, two jobs, told apart by the arguments Roost wrote into the
+// settings file it installed itself into: stand between an agent and the
+// person for a tool event, or forward what a status line was told about the
+// quota windows.
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
@@ -18,8 +18,6 @@ if arguments.contains(StatusLineInstall.flag) {
     runStatusLine(wrapping: value(after: StatusLineInstall.wrapFlag))
 }
 
-if let name = value(after: "--agent"), let agent = AgentKind(rawValue: name) {
-    runAgentHook(agent)
-}
-
-runPreToolUse()
+// Unnamed means Claude Code: it was the only agent when this hook was first
+// installed, and those settings files are still out there.
+runToolHook(value(after: "--agent").flatMap(AgentKind.init(rawValue:)) ?? .claudeCode)

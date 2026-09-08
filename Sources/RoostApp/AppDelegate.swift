@@ -21,9 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.startRefreshing()
         model.startCheckingForUpdates()
         model.refreshHookState()
-        model.approvals.permissionMode = { [weak model] sessionId in
-            await model?.permissionMode(for: sessionId) ?? nil
-        }
+        model.repairHooks()
         // A card appears the instant it is held, so the sound that goes with
         // it cannot wait for the next scan.
         model.approvals.onHold = { [weak model] _ in model?.announce() }

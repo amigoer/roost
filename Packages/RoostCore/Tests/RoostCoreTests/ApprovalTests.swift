@@ -2,43 +2,40 @@ import XCTest
 @testable import RoostCore
 
 final class ApprovalGateTests: XCTestCase {
-    func testReadOnlyToolsNeverReachTheApp() {
-        XCTAssertFalse(ApprovalGate.mayPrompt(tool: "Read"))
-        XCTAssertFalse(ApprovalGate.mayPrompt(tool: "Grep"))
-        XCTAssertTrue(ApprovalGate.mayPrompt(tool: "Bash"))
-        XCTAssertTrue(ApprovalGate.mayPrompt(tool: "mcp__github__create_pr"))
+    /// The gate holds no policy any more. `PermissionRequest` runs where a
+    /// prompt is about to appear and nowhere else, so there is nothing left to
+    /// work out about which calls would have been asked about -- only the two
+    /// that stop a session without being permissions at all.
+    func testOnlyAQuestionAndAPlanAreClaimedFromPreToolUse() {
+        XCTAssertEqual(ApprovalGate.asks, ["AskUserQuestion", "ExitPlanMode"])
+        XCTAssertNil(ApprovalGate.ask(tool: "Bash", input: ["command": "ls"]))
+        XCTAssertNil(ApprovalGate.ask(tool: "Edit", input: ["file_path": "/x/a.swift"]))
     }
 
-    func testAcceptEditsHasAlreadyAnsweredForEdits() {
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Edit", permissionMode: "acceptEdits"))
-        XCTAssertTrue(ApprovalGate.shouldAsk(tool: "Bash", permissionMode: "acceptEdits"))
+    func testAQuestionAndAPlanArriveAsTheirOwnKinds() throws {
+        let question = try XCTUnwrap(ApprovalGate.ask(tool: "AskUserQuestion", input: [
+            "questions": [["question": "Which one?", "options": [["label": "a"], ["label": "b"]]]],
+        ]))
+        guard case .question = question else { return XCTFail("expected a question") }
+
+        let plan = try XCTUnwrap(ApprovalGate.ask(tool: "ExitPlanMode",
+                                                  input: ["plan": "## Approach"]))
+        guard case .plan = plan else { return XCTFail("expected a plan") }
     }
 
-    func testBypassAsksForNothing() {
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Bash", permissionMode: "bypassPermissions"))
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Write", permissionMode: "plan"))
+    /// One that cannot be put on a card in full is left to prompt where it did.
+    func testAnUnanswerableAskIsNotClaimed() {
+        XCTAssertNil(ApprovalGate.ask(tool: "ExitPlanMode", input: ["plan": "  "]))
+        XCTAssertNil(ApprovalGate.ask(tool: "AskUserQuestion", input: ["questions": []]))
     }
 
-    /// The desktop app's own default answers for itself, so nothing it runs
-    /// is worth holding: the card would be the only prompt the user ever saw.
-    func testAutoHoldsNothing() {
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Bash", permissionMode: "auto"))
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Write", permissionMode: "auto"))
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "mcp__github__create_pr", permissionMode: "auto"))
-    }
-
-    /// Only the modes known to prompt are held.
-    func testOnlyPromptingModesAsk() {
-        XCTAssertTrue(ApprovalGate.shouldAsk(tool: "Write", permissionMode: "default"))
-        // No record of the session at all: one started in a terminal, which
-        // prompts unless it was told not to.
-        XCTAssertTrue(ApprovalGate.shouldAsk(tool: "Write", permissionMode: nil))
-    }
-
-    /// A mode named after this was written is likelier to be another loose one
-    /// than a stricter one, and a card nobody needed is the worse mistake.
-    func testAModeNobodyHereKnowsIsLetThrough() {
-        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Bash", permissionMode: "someFutureMode"))
+    func testTheRowIsToldWhatIsBeingAsked() throws {
+        let plan = try XCTUnwrap(ApprovalGate.ask(tool: "ExitPlanMode",
+                                                  input: ["plan": "## Approach\n- do it"]))
+        XCTAssertEqual(ApprovalGate.summary(of: plan), "Approach")
+        // A permission says what it is running instead, which the row already
+        // reads off the tool input.
+        XCTAssertNil(ApprovalGate.summary(of: .permission))
     }
 }
 
@@ -249,14 +246,20 @@ final class ApprovalCenterTests: XCTestCase {
         XCTAssertTrue(center.pending.isEmpty)
     }
 
-    func testACallThatWouldNotPromptNeverBecomesACard() async {
+    /// Everything that arrives is held. The helper only sends calls an agent
+    /// was really about to prompt about, so a card here is a prompt there --
+    /// which is what the permission event bought and what nothing in this
+    /// class has to work out any more.
+    func testEveryHeldCallBecomesACard() async {
         let center = ApprovalCenter()
-        center.permissionMode = { _ in "acceptEdits" }
+        let held = request("Edit")
+        let reply = Task { await center.handle(held) }
+        await waitForCard(center)
 
-        let answer = await center.handle(request("Edit"))
-
-        XCTAssertEqual(answer.decision, .ask)
-        XCTAssertTrue(center.pending.isEmpty)
+        XCTAssertEqual(center.current?.id, held.id)
+        center.decide(held.id, .allow)
+        let answer = await reply.value
+        XCTAssertEqual(answer.decision, .allow)
     }
 }
 

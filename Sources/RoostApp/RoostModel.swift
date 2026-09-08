@@ -118,7 +118,8 @@ final class RoostModel {
     func refreshHookState() {
         opensAtLogin = LoginItem.isEnabled
         let settings = HookInstall.read()
-        answersPrompts = HookInstall.isInstalled(settings, command: hookCommand)
+        answersPrompts = HookInstall.isInstalled(agent: .claudeCode, command: hookCommand,
+                                                 in: settings)
         showsUsage = StatusLineInstall.isInstalled(settings, command: hookCommand)
         watchesCodex = HookInstall.isInstalled(agent: .codex,
                                                command: hookCommand(for: .codex),
@@ -129,8 +130,24 @@ final class RoostModel {
     func setAnswersPrompts(_ on: Bool) {
         let settings = HookInstall.read()
         let updated = on
-            ? HookInstall.adding(command: hookCommand, to: settings)
+            ? HookInstall.adding(agent: .claudeCode, command: hookCommand, to: settings)
             : HookInstall.removing(command: hookCommand, from: settings)
+        try? HookInstall.write(updated)
+        refreshHookState()
+    }
+
+    /// Brings an older install up to date.
+    ///
+    /// Answering used to mean one `PreToolUse` hook and now means two events,
+    /// so a settings file written by an earlier version has the switch on and
+    /// half the wiring -- which holds nothing at all, quietly. Repairing it is
+    /// not a new decision: the switch is already on, and this only writes what
+    /// turning it on today would have written.
+    func repairHooks() {
+        guard answersPrompts else { return }
+        let settings = HookInstall.read()
+        let updated = HookInstall.adding(agent: .claudeCode, command: hookCommand, to: settings)
+        guard !NSDictionary(dictionary: updated).isEqual(to: settings) else { return }
         try? HookInstall.write(updated)
         refreshHookState()
     }
@@ -174,13 +191,6 @@ final class RoostModel {
     /// How much room the held call takes above the rows, and zero when there is
     /// none. Read by the view and by the hit test, which must agree.
     var heldHeight: CGFloat { IslandGeometry.Held.height(approvals.current?.kind) }
-
-    /// Asked when a tool call is about to be held, so it comes off disk rather
-    /// than out of the last scan: a conversation opened seconds ago, or a mode
-    /// switched seconds ago, is exactly when a wrong answer shows a card.
-    func permissionMode(for sessionId: String) async -> String? {
-        await scanner.permissionMode(for: sessionId)
-    }
 
     private let scanner = SessionScanner()
     private var refreshTask: Task<Void, Never>?

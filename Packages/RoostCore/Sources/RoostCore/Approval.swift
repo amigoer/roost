@@ -54,11 +54,6 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     public let agent: String?
     public let receivedAt: Date
 
-    /// Which tool is asking. Absent from a payload written by an older hook,
-    /// which only ever spoke for Claude Code.
-    private let heldSource: AgentKind?
-    public var source: AgentKind { heldSource ?? .claudeCode }
-
     /// What answering this actually means.
     ///
     /// Stored optional because a bundle can be left holding an older
@@ -70,7 +65,6 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, sessionId, cwd, tool, detail, agent, receivedAt
         case heldKind = "kind"
-        case heldSource = "source"
     }
 
     public var projectName: String { URL(fileURLWithPath: cwd).lastPathComponent }
@@ -88,8 +82,7 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
 
     public init(id: String = UUID().uuidString, sessionId: String, cwd: String,
                 tool: String, detail: String?, agent: String? = nil,
-                receivedAt: Date = Date(), kind: HeldKind = .permission,
-                source: AgentKind = .claudeCode) {
+                receivedAt: Date = Date(), kind: HeldKind = .permission) {
         self.id = id
         self.sessionId = sessionId
         self.cwd = cwd
@@ -98,7 +91,6 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
         self.agent = agent
         self.receivedAt = receivedAt
         self.heldKind = kind
-        self.heldSource = source
     }
 }
 
@@ -158,47 +150,29 @@ public struct ApprovalReply: Codable, Sendable {
               + "Stay in plan mode and ask what to change.")
 }
 
-/// Which tool calls are worth holding.
+/// What a held call is, and what a person needs to see to answer it.
 ///
-/// Getting this wrong in the loud direction is worse than getting it wrong in
-/// the quiet one: a card for a tool that would never have prompted is pure
-/// interruption, while a missed one just prompts where it always did.
+/// There is deliberately no policy here any more. Deciding which tool calls
+/// would have raised a prompt used to live in this file, reading each session's
+/// permission mode off disk to guess at it, because `PreToolUse` fires for
+/// every call whether it would have prompted or not. `PermissionRequest` fires
+/// only where a prompt was really about to appear, so the guess is gone and
+/// with it the whole class of cards for calls nobody was going to be asked
+/// about.
 public enum ApprovalGate {
-    /// Tools that never raise a permission prompt, filtered in the hook itself
-    /// so the common path never pays for a round trip.
-    public static let silent: Set<String> = [
-        "Read", "Glob", "Grep", "NotebookRead", "TodoWrite", "BashOutput", "KillShell",
-        "SlashCommand", "ListMcpResources",
-    ]
-
-    /// Calls that are a question to the person by nature. Held in every mode,
-    /// because no permission setting answers them: `bypassPermissions` skips
-    /// prompts, it does not decide which deploy target you meant.
+    /// Calls that stop a session without being permissions at all. No
+    /// permission event fires for these, and no permission setting answers
+    /// them: `bypassPermissions` skips prompts, it does not decide which
+    /// deploy target you meant.
     public static let asks: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
 
-    /// Tools whose prompt an accept-edits session has already answered once.
-    public static let edits: Set<String> = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
-
-    /// Cheap filter, applied by the hook with nothing but the tool name.
-    public static func mayPrompt(tool: String) -> Bool { !silent.contains(tool) }
-
-    /// The real policy, applied by the app, which knows the session's mode.
-    ///
-    /// Only the modes that still raise a prompt are held. `nil` is a session
-    /// with no record of its own -- one started in a terminal, which prompts
-    /// unless it was told not to. Every mode the desktop app has shipped apart
-    /// from `default` loosens permissions rather than tightening them, so a
-    /// name this does not recognise is let through with the rest: a card for a
-    /// call the session would have run anyway is not a safety net, and from
-    /// the outside it is indistinguishable from a prompt that was real.
-    public static func shouldAsk(tool: String, permissionMode: String?) -> Bool {
-        guard mayPrompt(tool: tool) else { return false }
-        guard !asks.contains(tool) else { return true }
-        switch permissionMode {
-        case nil, "default": return true
-        case "acceptEdits": return !edits.contains(tool)
-        // "auto", "bypassPermissions", "plan", and whatever comes next.
-        default: return false
+    /// One of those two, in the shape a card can answer it, or nil when the
+    /// island has no business intercepting this one.
+    public static func ask(tool: String, input: [String: Any]?) -> HeldKind? {
+        switch tool {
+        case "AskUserQuestion": question(from: input).map(HeldKind.question)
+        case "ExitPlanMode": plan(from: input).map(HeldKind.plan)
+        default: nil
         }
     }
 
@@ -241,10 +215,14 @@ public enum ApprovalGate {
                             options: options)
     }
 
-    /// What a session row shows for a held question: the question itself, cut
-    /// to a row the way every other detail is.
-    public static func summary(of question: HeldQuestion) -> String? {
-        TranscriptReader.condensed(question.prompt)
+    /// What a session row shows under its title while a call is held: the
+    /// thing being asked, cut to a row the way every other detail is.
+    public static func summary(of kind: HeldKind) -> String? {
+        switch kind {
+        case .permission: nil
+        case .question(let question): TranscriptReader.condensed(question.prompt)
+        case .plan(let plan): PlanPreview.make(plan, limit: 1).lines.first
+        }
     }
 
     /// The plan behind an `ExitPlanMode`, or nil when there is nothing to read.

@@ -57,11 +57,11 @@ final class PlanPreviewTests: XCTestCase {
 }
 
 final class PlanGateTests: XCTestCase {
-    func testAPlanReachesTheIslandInEveryMode() {
-        for mode in [nil, "default", "acceptEdits", "auto", "bypassPermissions", "plan"] {
-            XCTAssertTrue(ApprovalGate.shouldAsk(tool: "ExitPlanMode", permissionMode: mode),
-                          "mode \(mode ?? "nil")")
-        }
+    /// A plan is not a permission, so no permission event fires for it: it
+    /// reaches the island through `PreToolUse` and is claimed there by name.
+    func testAPlanIsClaimedFromPreToolUse() {
+        XCTAssertTrue(ApprovalGate.asks.contains("ExitPlanMode"))
+        XCTAssertNotNil(ApprovalGate.ask(tool: "ExitPlanMode", input: ["plan": "## Approach"]))
     }
 
     /// A verdict on a plan nobody can see is a guess.

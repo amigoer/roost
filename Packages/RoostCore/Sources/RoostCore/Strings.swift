@@ -47,8 +47,8 @@ public struct Strings: Sendable, Hashable {
     public var approvalsSection: String { pick("Approvals", "权限确认") }
     public var answerPrompts: String { pick("Answer permission prompts in the island", "在岛上回答权限确认") }
     public var approvalsNote: String {
-        pick("Adds one hook to ~/.claude/settings.json, pointing at the helper inside this app. Turning it off takes the entry back out. With Roost closed, or no answer within a minute, sessions prompt exactly as they do now.",
-             "会往 ~/.claude/settings.json 里加一条 hook，指向本应用内的 helper；关掉它就把这条记录去掉。Roost 没开着、或者一分钟内没人回答，会话照旧自己弹提示。")
+        pick("Adds two hooks to ~/.claude/settings.json, both pointing at the helper inside this app: one runs where a permission prompt is about to appear, the other catches the questions and plans no permission event fires for. Turning it off takes both back out. With Roost closed, or no answer within a minute, sessions prompt exactly as they do now.",
+             "会往 ~/.claude/settings.json 里加两条 hook，都指向本应用内的 helper：一条在权限提示将要出现的地方运行，另一条接住提问和方案——它们不会触发任何权限事件。关掉它就把两条都去掉。Roost 没开着、或者一分钟内没人回答，会话照旧自己弹提示。")
     }
 
     public var agentsSection: String { pick("Agents", "智能体") }

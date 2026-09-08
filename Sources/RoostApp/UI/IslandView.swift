@@ -9,14 +9,18 @@ import RoostCore
 /// meaning and never has to be interpreted.
 struct IslandView: View {
     @Bindable var model: RoostModel
+    /// This screen's own hover state.
+    @Bindable var state: IslandState
     /// Physical cutout size: the island's resting shape and the camera gap.
     let notchSize: CGSize
+
+    private var showsPanel: Bool { state.showsPanel(pinned: model.isPinned) }
 
     private var size: CGSize {
         IslandGeometry.size(level: model.level,
                             tier: model.tier,
                             notch: notchSize,
-                            expanded: model.showsPanel,
+                            expanded: showsPanel,
                             sessionCount: model.visibleSessions.count,
                             hasFooter: model.staleCount > 0,
                             hasApproval: model.approvals.current != nil)
@@ -33,17 +37,17 @@ struct IslandView: View {
 
     @ViewBuilder
     private var island: some View {
-        if model.level == .dormant && !model.showsPanel {
+        if model.level == .dormant && !showsPanel {
             Color.clear.frame(width: notchSize.width, height: notchSize.height)
         } else {
             ZStack {
                 IslandShape(bottomRadius: IslandGeometry.bottomRadius(level: model.level,
-                                                                     expanded: model.isExpanded))
+                                                                     expanded: showsPanel))
                     .fill(.black)
                     .shadow(color: .black.opacity(0.55), radius: 8, y: 3)
 
 
-                if model.showsPanel {
+                if showsPanel {
                     expandedContent
                 } else {
                     CollapsedContent(face: model.face,
@@ -54,7 +58,7 @@ struct IslandView: View {
                 }
             }
             .frame(width: size.width, height: size.height)
-            .animation(.spring(response: 0.24, dampingFraction: 0.74), value: model.isExpanded)
+            .animation(.spring(response: 0.24, dampingFraction: 0.74), value: state.isExpanded)
             .animation(.spring(response: 0.32, dampingFraction: 0.72), value: model.level)
             .animation(.spring(response: 0.32, dampingFraction: 0.72), value: model.tier)
         }
@@ -72,7 +76,7 @@ struct IslandView: View {
                 .padding(.bottom, 5)
 
             if let held = model.approvals.current {
-                ApprovalCard(request: held, hovered: model.hoveredApproval)
+                ApprovalCard(request: held, hovered: state.hoveredApproval)
             }
 
             if model.visibleSessions.isEmpty {
@@ -83,7 +87,7 @@ struct IslandView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(model.visibleSessions.enumerated()), id: \.element.id) { index, session in
-                        SessionRowView(session: session, isHovered: model.hoveredIndex == index)
+                        SessionRowView(session: session, isHovered: state.hoveredIndex == index)
                     }
                 }
             }

@@ -30,6 +30,13 @@ final class HoverDetector {
         view.onSecondaryClick = { [weak self] in self?.onSecondaryClick?(NSEvent.mouseLocation) }
     }
 
+    /// Called when a display goes away: its hit target must go with it.
+    func stop() {
+        stopMonitor()
+        isHovering = false
+        panel.orderOut(nil)
+    }
+
     func setHitRect(_ rect: NSRect) {
         guard panel.frame != rect else { return }
         panel.setFrame(rect, display: false)

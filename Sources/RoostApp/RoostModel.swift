@@ -5,10 +5,6 @@ import RoostCore
 @Observable
 final class RoostModel {
     var sessions: [Session] = []
-    var isExpanded = false
-    var hoveredIndex: Int?
-    var hoveredApproval: IslandGeometry.ApprovalHit?
-
     /// Tool calls held by the hook, waiting for an answer.
     let approvals = ApprovalCenter()
 
@@ -22,9 +18,9 @@ final class RoostModel {
         var face: MascotFace
     }
 
-    /// A held tool call keeps the panel open: it is not something to answer
-    /// only while the cursor happens to be on the notch.
-    var showsPanel: Bool { isExpanded || approvals.current != nil }
+    /// A held tool call keeps every island open: it is not something to answer
+    /// only while the cursor happens to be on one particular notch.
+    var isPinned: Bool { approvals.current != nil }
 
     func permissionMode(for sessionId: String) -> String? {
         sessions.first { $0.id == sessionId }?.permissionMode

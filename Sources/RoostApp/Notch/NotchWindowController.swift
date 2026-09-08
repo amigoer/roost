@@ -2,10 +2,17 @@ import AppKit
 import SwiftUI
 import RoostCore
 
-/// Owns one overlay panel per screen plus the single hover target, and keeps
-/// them anchored to the notch.
+/// Owns one island per screen, each with its own hover target, and keeps them
+/// anchored to their display's notch.
+///
+/// Per screen rather than per app: the sessions are the same everywhere, but
+/// pointing at the island on one display must not open the island on another,
+/// and a display without a physical notch still gets a target of its own.
 @MainActor
 final class NotchWindowController {
+    /// Right-click on any island, in screen coordinates.
+    var onSecondaryClick: ((NSPoint) -> Void)?
+
     /// Panels stay a fixed generous size and only the SwiftUI content animates
     /// inside them. Resizing an NSPanel per frame makes NSHostingView relayout
     /// every tick and the morph stutters.
@@ -17,12 +24,14 @@ final class NotchWindowController {
     private static let hitPaddingX: CGFloat = 12
     private static let hitPaddingY: CGFloat = 18
 
-    /// Right-click on the island, in screen coordinates.
-    var onSecondaryClick: ((NSPoint) -> Void)?
+    private struct Island {
+        let panel: NotchPanel
+        let state: IslandState
+        let hover: HoverDetector
+    }
 
     private let model: RoostModel
-    private let hover = HoverDetector()
-    private var panels: [String: NotchPanel] = [:]
+    private var islands: [String: Island] = [:]
     private var observer: NSObjectProtocol?
     private var rebuildTask: Task<Void, Never>?
 
@@ -31,35 +40,6 @@ final class NotchWindowController {
     }
 
     func start() {
-        hover.onMove = { [weak self] point in
-            guard let self else { return }
-            model.hoveredApproval = approvalHit(at: point)
-            model.hoveredIndex = model.hoveredApproval == nil ? rowIndex(at: point) : nil
-        }
-        hover.onClick = { [weak self] point in
-            guard let self else { return }
-            if let held = model.approvals.current, let hit = approvalHit(at: point) {
-                model.approvals.decide(held.id, hit == .allow ? .allow : .deny)
-                return
-            }
-            guard let index = rowIndex(at: point),
-                  index < model.visibleSessions.count else { return }
-            SessionActivator.activate(model.visibleSessions[index])
-        }
-        hover.onSecondaryClick = { [weak self] point in
-            self?.onSecondaryClick?(point)
-        }
-        hover.onChange = { [weak self] hovering in
-            guard let self else { return }
-            model.isExpanded = hovering
-            if !hovering {
-                model.hoveredIndex = nil
-                model.hoveredApproval = nil
-            }
-            // Grow the hit rect immediately, not on the animation's schedule,
-            // or the cursor lands outside it and the panel closes underneath.
-            updateHitRect()
-        }
         rebuild()
         observer = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -70,9 +50,11 @@ final class NotchWindowController {
         }
     }
 
-    /// Called after the model changes so the collapsed hit target tracks the
+    /// Called after the model changes so every collapsed hit target tracks its
     /// island as it grows and shrinks with state.
-    func syncHitRect() { updateHitRect() }
+    func syncHitRect() {
+        for uuid in islands.keys { updateHitRect(uuid) }
+    }
 
     /// Screen parameter changes arrive in bursts (resolution, sleep, wake,
     /// arrangement), so collapse them into a single rebuild.
@@ -93,54 +75,96 @@ final class NotchWindowController {
             seen.insert(uuid)
 
             let anchor = screen.signalAnchorRect
-            let width = min(screen.frame.width, max(anchor.width * 4, Self.minPanelWidth))
-            let frame = NSRect(x: screen.frame.midX - width / 2,
-                               y: screen.frame.maxY - Self.panelHeight,
-                               width: width,
-                               height: Self.panelHeight)
+            let island = islands[uuid] ?? make(for: uuid, screen: screen)
+            islands[uuid] = island
 
-            let panel = panels[uuid] ?? {
-                let created = NotchPanel(contentRect: frame)
-                created.contentView = NSHostingView(
-                    rootView: IslandView(model: model, notchSize: anchor.size))
-                panels[uuid] = created
-                return created
-            }()
-
-            panel.notchSize = anchor.size
-            panel.setFrame(frame, display: true)
-            panel.orderFrontRegardless()
+            island.panel.notchSize = anchor.size
+            island.panel.setFrame(panelFrame(on: screen), display: true)
+            // The cutout size is baked into the view, so a display that changed
+            // resolution needs the root view rebuilt, not just the panel moved.
+            (island.panel.contentView as? NSHostingView<IslandView>)?.rootView =
+                IslandView(model: model, state: island.state, notchSize: anchor.size)
+            island.panel.orderFrontRegardless()
         }
 
-        for (uuid, panel) in panels where !seen.contains(uuid) {
-            panel.orderOut(nil)
-            panels.removeValue(forKey: uuid)
+        for (uuid, island) in islands where !seen.contains(uuid) {
+            island.panel.orderOut(nil)
+            island.hover.stop()
+            islands.removeValue(forKey: uuid)
         }
 
-        updateHitRect()
+        syncHitRect()
     }
 
-    /// Hover is offered on the notch display only; a second monitor has no
-    /// cutout to grow out of.
-    private var hoverScreen: NSScreen? {
-        NSScreen.screens.first(where: \.hasNotch) ?? NSScreen.main
+    private func make(for uuid: String, screen: NSScreen) -> Island {
+        let state = IslandState()
+        let panel = NotchPanel(contentRect: panelFrame(on: screen))
+        panel.contentView = NSHostingView(
+            rootView: IslandView(model: model, state: state, notchSize: screen.signalAnchorRect.size))
+
+        let hover = HoverDetector()
+        hover.onChange = { [weak self] hovering in
+            guard let self, let island = islands[uuid] else { return }
+            island.state.isExpanded = hovering
+            if !hovering {
+                island.state.hoveredIndex = nil
+                island.state.hoveredApproval = nil
+            }
+            // Grow the hit rect immediately, not on the animation's schedule,
+            // or the cursor lands outside it and the panel closes underneath.
+            updateHitRect(uuid)
+        }
+        hover.onMove = { [weak self] point in
+            guard let self, let island = islands[uuid] else { return }
+            island.state.hoveredApproval = approvalHit(at: point, on: uuid)
+            island.state.hoveredIndex = island.state.hoveredApproval == nil
+                ? rowIndex(at: point, on: uuid)
+                : nil
+        }
+        hover.onClick = { [weak self] point in
+            guard let self else { return }
+            if let held = model.approvals.current, let hit = approvalHit(at: point, on: uuid) {
+                model.approvals.decide(held.id, hit == .allow ? .allow : .deny)
+                return
+            }
+            guard let index = rowIndex(at: point, on: uuid),
+                  index < model.visibleSessions.count else { return }
+            SessionActivator.activate(model.visibleSessions[index])
+        }
+        hover.onSecondaryClick = { [weak self] point in
+            self?.onSecondaryClick?(point)
+        }
+        return Island(panel: panel, state: state, hover: hover)
+    }
+
+    private func panelFrame(on screen: NSScreen) -> NSRect {
+        let anchor = screen.signalAnchorRect
+        let width = min(screen.frame.width, max(anchor.width * 4, Self.minPanelWidth))
+        return NSRect(x: screen.frame.midX - width / 2,
+                      y: screen.frame.maxY - Self.panelHeight,
+                      width: width,
+                      height: Self.panelHeight)
+    }
+
+    private func screen(_ uuid: String) -> NSScreen? {
+        NSScreen.screens.first { $0.displayUUID == uuid }
     }
 
     /// Maps a screen point to a list row. The island is top-anchored, so the
-    /// only thing that matters is distance down from the top of the screen.
-    private func rowIndex(at point: NSPoint) -> Int? {
-        guard model.showsPanel, let screen = hoverScreen else { return nil }
-        let notch = screen.signalAnchorRect.size
+    /// only thing that matters is distance down from the top of that screen.
+    private func rowIndex(at point: NSPoint, on uuid: String) -> Int? {
+        guard let island = islands[uuid], let screen = screen(uuid),
+              island.state.showsPanel(pinned: model.isPinned) else { return nil }
         return IslandGeometry.rowIndex(atOffsetFromTop: screen.frame.maxY - point.y,
-                                       notch: notch,
+                                       notch: screen.signalAnchorRect.size,
                                        rowCount: model.visibleSessions.count,
-                                       hasApproval: model.approvals.current != nil)
+                                       hasApproval: model.isPinned)
     }
 
-    /// The island is centred on its screen, so a click has to be measured from
-    /// the island's own left edge before the card's buttons mean anything.
-    private func approvalHit(at point: NSPoint) -> IslandGeometry.ApprovalHit? {
-        guard model.approvals.current != nil, let screen = hoverScreen else { return nil }
+    /// The island is centred on its own screen, so a click has to be measured
+    /// from that island's left edge before the card's buttons mean anything.
+    private func approvalHit(at point: NSPoint, on uuid: String) -> IslandGeometry.ApprovalHit? {
+        guard model.isPinned, let screen = screen(uuid) else { return nil }
         let notch = screen.signalAnchorRect.size
         let width = IslandGeometry.expandedSize(notch: notch,
                                                 sessionCount: model.visibleSessions.count,
@@ -152,22 +176,22 @@ final class NotchWindowController {
                                           islandWidth: width)
     }
 
-    private func updateHitRect() {
-        guard let screen = hoverScreen else { return }
+    private func updateHitRect(_ uuid: String) {
+        guard let island = islands[uuid], let screen = screen(uuid) else { return }
         let anchor = screen.signalAnchorRect
+        let expanded = island.state.showsPanel(pinned: model.isPinned)
         let size = IslandGeometry.size(level: model.level,
                                        tier: model.tier,
                                        notch: anchor.size,
-                                       expanded: model.showsPanel,
+                                       expanded: expanded,
                                        sessionCount: model.visibleSessions.count,
                                        hasFooter: model.staleCount > 0,
-                                       hasApproval: model.approvals.current != nil)
-        let padX = model.showsPanel ? 0 : Self.hitPaddingX
-        let padY = model.showsPanel ? 0 : Self.hitPaddingY
-        let rect = NSRect(x: screen.frame.midX - size.width / 2 - padX,
-                          y: screen.frame.maxY - size.height - padY,
-                          width: size.width + padX * 2,
-                          height: size.height + padY)
-        hover.setHitRect(rect)
+                                       hasApproval: model.isPinned)
+        let padX = expanded ? 0 : Self.hitPaddingX
+        let padY = expanded ? 0 : Self.hitPaddingY
+        island.hover.setHitRect(NSRect(x: screen.frame.midX - size.width / 2 - padX,
+                                       y: screen.frame.maxY - size.height - padY,
+                                       width: size.width + padX * 2,
+                                       height: size.height + padY))
     }
 }

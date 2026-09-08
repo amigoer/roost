@@ -51,6 +51,15 @@ public struct Strings: Sendable, Hashable {
              "会往 ~/.claude/settings.json 里加一条 hook，指向本应用内的 helper；关掉它就把这条记录去掉。Roost 没开着、或者一分钟内没人回答，会话照旧自己弹提示。")
     }
 
+    public var agentsSection: String { pick("Agents", "智能体") }
+    public func watchAgent(_ agent: AgentKind) -> String {
+        pick("Watch \(agent.label) sessions too", "同时监视 \(agent.label) 会话")
+    }
+    public var codexNote: String {
+        pick("Adds Roost's helper to ~/.codex/hooks.json, the way the approvals switch adds it to Claude Code's settings. Codex writes no registry of live sessions, so its rows are built from the events it announces, and its permission prompts are answered on the same card. Turning it off takes every entry back out.",
+             "会往 ~/.codex/hooks.json 里加上 Roost 的 helper，和权限确认那个开关往 Claude Code 设置里加的是同一回事。Codex 不写活动会话清单，所以它的行由它主动上报的事件拼出来，权限提示也在同一张卡片上回答。关掉就把所有记录去掉。")
+    }
+
     public var soundSection: String { pick("Sound", "声音") }
     public var playSounds: String { pick("Say it out loud", "用声音提示") }
     public var soundsNote: String {

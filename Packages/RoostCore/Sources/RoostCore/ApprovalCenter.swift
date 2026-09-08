@@ -30,9 +30,10 @@ public final class ApprovalCenter {
     public var current: ApprovalRequest? { pending.first }
 
     public func handle(_ request: ApprovalRequest) async -> ApprovalReply {
-        // A question is held in every mode, so reading the mode would only be
-        // a disk hit on the way to the same answer.
-        if case .permission = request.kind {
+        // A question is held in every mode, and an agent whose hook fires only
+        // where a prompt would really have appeared has already decided. Both
+        // would only be a disk hit on the way to the same answer.
+        if case .permission = request.kind, !request.source.promptsAreExact {
             guard await ApprovalGate.shouldAsk(
                 tool: request.tool,
                 permissionMode: permissionMode?(request.sessionId)) else {

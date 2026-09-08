@@ -29,10 +29,15 @@ enum SessionActivator {
     static func activate(_ session: Session) {
         // A terminal has no notion of a conversation to deep-link to; raising
         // it is the whole of what can be done, and it is what was wanted.
-        if let owner = owningApplication(of: session.pid), owner.bundleIdentifier != bundleID {
+        if let owner = owningApplication(of: session), owner.bundleIdentifier != bundleID {
             owner.activate(options: [.activateAllWindows])
             return
         }
+
+        // Only Claude Code has a route in that lands on the conversation. For
+        // anything else, whatever window was found is where the session is,
+        // and the desktop app has nothing to do with it.
+        guard session.agent == .claudeCode else { return }
 
         // Read at the click rather than carried on the session: a conversation
         // started seconds ago is not in the last scan, and opening it by the
@@ -54,8 +59,14 @@ enum SessionActivator {
     /// Accessory and background processes are skipped rather than accepted:
     /// the shells and helpers between a session and its terminal are exactly
     /// what would otherwise be raised, and raising one does nothing visible.
-    private static func owningApplication(of pid: pid_t) -> NSRunningApplication? {
-        for ancestor in ProcessTree.ancestors(of: pid) {
+    private static func owningApplication(of session: Session) -> NSRunningApplication? {
+        // A session Roost only hears about through hooks has no pid of its
+        // own, so the hook handed over the chain above itself instead. Its own
+        // end of it is long dead, which a lookup by pid simply skips.
+        let chain = session.ancestors.isEmpty
+            ? ProcessTree.ancestors(of: session.pid)
+            : session.ancestors
+        for ancestor in chain {
             guard let app = NSRunningApplication(processIdentifier: ancestor),
                   app.activationPolicy == .regular else { continue }
             return app

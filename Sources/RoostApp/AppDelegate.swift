@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         await model.approvals.handle(request)
     } usage: { [model] report in
         await MainActor.run { model.report(report) }
+    } session: { [model] report in
+        await MainActor.run { model.report(report) }
     }
     private var hitSyncTask: Task<Void, Never>?
 

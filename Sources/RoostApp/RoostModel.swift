@@ -6,6 +6,8 @@ import RoostCore
 final class RoostModel {
     /// What the last scan read off disk.
     private(set) var scanned: [Session] = []
+    /// Sessions Roost knows about only because their hooks said so.
+    let reported = ReportedSessions()
     /// Tool calls held by the hook, waiting for an answer.
     let approvals = ApprovalCenter()
     /// The chirps, and whether they are wanted.
@@ -24,8 +26,9 @@ final class RoostModel {
     /// session waiting on a card is waiting on you, and has to say so and sort
     /// like it.
     var sessions: [Session] {
-        guard !approvals.pending.isEmpty else { return scanned }
-        return Session.ordered(scanned.map { session in
+        let all = scanned + reported.sessions()
+        guard !approvals.pending.isEmpty else { return Session.ordered(all) }
+        return Session.ordered(all.map { session in
             guard let held = approvals.pending.first(where: { $0.sessionId == session.id })
             else { return session }
             return session.held(by: held)
@@ -43,6 +46,13 @@ final class RoostModel {
 
     func report(_ usage: Usage) {
         self.usage = usage
+    }
+
+    func report(_ session: SessionReport) {
+        reported.receive(session)
+        // A card for a session nobody had heard of yet appears with the report
+        // that introduces it, so the sound has to follow it here too.
+        announce()
     }
 
     /// The figure, while it is still describing the present. Nothing writes a
@@ -79,12 +89,21 @@ final class RoostModel {
     /// Whether the approval hook is installed. Read from disk on demand rather
     /// than watched: it changes only when something here writes it.
     private(set) var answersPrompts = false
+    /// Whether Codex has been told to talk to Roost.
+    private(set) var watchesCodex = false
     /// Whether the status line command is installed, which is the only way the
     /// quota windows reach this app at all.
     private(set) var showsUsage = false
 
     var hookCommand: String {
         Bundle.main.bundleURL.appending(path: "Contents/MacOS/roost-hook").path
+    }
+
+    /// The same helper, told which agent it is standing in for. Quoted because
+    /// an agent runs a hook through a shell and an app can be renamed into a
+    /// path with a space in it.
+    func hookCommand(for agent: AgentKind) -> String {
+        agent == .claudeCode ? hookCommand : "'\(hookCommand)' --agent \(agent.rawValue)"
     }
 
     /// Read from the system rather than remembered: the user can switch a
@@ -101,6 +120,9 @@ final class RoostModel {
         let settings = HookInstall.read()
         answersPrompts = HookInstall.isInstalled(settings, command: hookCommand)
         showsUsage = StatusLineInstall.isInstalled(settings, command: hookCommand)
+        watchesCodex = HookInstall.isInstalled(agent: .codex,
+                                               command: hookCommand(for: .codex),
+                                               in: HookInstall.read(AgentKind.codex.hooksURL))
     }
 
     /// Writes the user's own settings file, additively both ways.
@@ -110,6 +132,20 @@ final class RoostModel {
             ? HookInstall.adding(command: hookCommand, to: settings)
             : HookInstall.removing(command: hookCommand, from: settings)
         try? HookInstall.write(updated)
+        refreshHookState()
+    }
+
+    /// Writes Codex's own hooks file, by the same rules as Claude Code's.
+    func setWatchesCodex(_ on: Bool) {
+        let url = AgentKind.codex.hooksURL
+        let command = hookCommand(for: .codex)
+        let settings = HookInstall.read(url)
+        let updated = on
+            ? HookInstall.adding(agent: .codex, command: command, to: settings)
+            : HookInstall.removing(command: command, from: settings)
+        try? HookInstall.write(updated, to: url)
+        // Rows for sessions nothing is reporting on any more.
+        if !on { reported.forget(.codex) }
         refreshHookState()
     }
 
@@ -222,6 +258,7 @@ final class RoostModel {
                 guard let self else { return }
                 self.scanned = await self.scanner.scan()
                 self.approvals.expireStale()
+                self.reported.expire()
                 self.announce()
                 // A stalled tool crosses the grace line without anything being
                 // written, so state can change with no file event to react to.

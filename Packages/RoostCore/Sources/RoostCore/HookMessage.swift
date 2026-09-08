@@ -8,6 +8,9 @@ import Foundation
 public enum HookMessage: Codable, Sendable {
     case approval(ApprovalRequest)
     case usage(Usage)
+    /// Where a session got to, from an agent that writes no registry Roost can
+    /// read. Waits for nothing.
+    case session(SessionReport)
 }
 
 extension HookMessage {

@@ -9,12 +9,15 @@ import RoostCore
 final class ApprovalServer: @unchecked Sendable {
     private let handler: @Sendable (ApprovalRequest) async -> ApprovalReply
     private let usage: @Sendable (Usage) async -> Void
+    private let session: @Sendable (SessionReport) async -> Void
     private var listener: Int32 = -1
 
     init(handler: @escaping @Sendable (ApprovalRequest) async -> ApprovalReply,
-         usage: @escaping @Sendable (Usage) async -> Void) {
+         usage: @escaping @Sendable (Usage) async -> Void,
+         session: @escaping @Sendable (SessionReport) async -> Void) {
         self.handler = handler
         self.usage = usage
+        self.session = session
     }
 
     func start() {
@@ -82,15 +85,19 @@ final class ApprovalServer: @unchecked Sendable {
         var window = timeval(tv_sec: 5, tv_usec: 0)
         setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &window, socklen_t(MemoryLayout<timeval>.size))
 
-        Task.detached { [handler, usage] in
+        Task.detached { [handler, usage, session] in
             defer { close(connection) }
             guard let line = ApprovalClient.readLine(fd: connection),
                   let message = HookMessage.decode(line) else { return }
 
-            // A status line waits for nothing: it has already closed its end
-            // and gone back to printing.
+            // Everything but a held call waits for nothing: it has already
+            // closed its end and gone back to what it was doing.
             guard case .approval(let request) = message else {
-                if case .usage(let report) = message { await usage(report) }
+                switch message {
+                case .usage(let report): await usage(report)
+                case .session(let report): await session(report)
+                case .approval: break
+                }
                 return
             }
 

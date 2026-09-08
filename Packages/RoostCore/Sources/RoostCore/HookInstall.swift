@@ -1,59 +1,92 @@
 import Foundation
 
-/// Installs the `PreToolUse` hook that lets the island answer permission
-/// prompts, by editing the user's own settings file.
+/// Installs the hooks that let the island answer for an agent, by editing that
+/// agent's own settings file.
 ///
 /// Deliberately additive and reversible: other people's hooks are left exactly
-/// as they were, and removing ours puts the file back.
+/// as they were, and removing ours puts the file back. Claude Code keeps them
+/// under `hooks` in `~/.claude/settings.json` and Codex under `hooks` in
+/// `~/.codex/hooks.json`, which is the same shape in a different file.
 public enum HookInstall {
-    public static func settingsURL() -> URL {
-        FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude/settings.json")
-    }
+    public static func settingsURL() -> URL { AgentKind.claudeCode.hooksURL }
 
-    /// Claude Code kills a hook that overruns, and a killed hook just falls
+    /// An agent kills a hook that overruns, and a killed hook just falls
     /// through to the normal prompt, so this sits a little above our own wait.
-    static let hookTimeout = Int(ApprovalSocket.timeout) + 5
+    public static let hookTimeout = Int(ApprovalSocket.timeout) + 5
 
-    public static func entry(command: String) -> [String: Any] {
+    /// Lifecycle hooks are told, not asked. Nothing waits on the answer, so
+    /// this only has to be long enough to write to a socket.
+    public static let reportTimeout = 5
+
+    public static func entry(command: String, timeout: Int = hookTimeout) -> [String: Any] {
         ["matcher": "*",
-         "hooks": [["type": "command", "command": command, "timeout": hookTimeout]]]
+         "hooks": [["type": "command", "command": command, "timeout": timeout]]]
     }
 
-    public static func isInstalled(_ settings: [String: Any], command: String) -> Bool {
-        groups(settings).contains { group in
-            commands(group).contains(command)
-        }
+    public static func isInstalled(_ settings: [String: Any], command: String,
+                                   event: String = "PreToolUse") -> Bool {
+        groups(settings, event: event).contains { commands($0).contains(command) }
     }
 
-    public static func adding(command: String, to settings: [String: Any]) -> [String: Any] {
-        guard !isInstalled(settings, command: command) else { return settings }
+    public static func adding(command: String, to settings: [String: Any],
+                              event: String = "PreToolUse",
+                              timeout: Int = hookTimeout) -> [String: Any] {
+        guard !isInstalled(settings, command: command, event: event) else { return settings }
         var settings = settings
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
-        var pre = hooks["PreToolUse"] as? [[String: Any]] ?? []
-        pre.append(entry(command: command))
-        hooks["PreToolUse"] = pre
+        var installed = hooks[event] as? [[String: Any]] ?? []
+        installed.append(entry(command: command, timeout: timeout))
+        hooks[event] = installed
         settings["hooks"] = hooks
         return settings
     }
 
+    /// Takes our command out of every event it appears under.
+    ///
+    /// A sweep rather than a list, because the list has grown once already and
+    /// an entry left behind after an uninstall is a hook nobody can see and
+    /// nobody asked for.
     public static func removing(command: String, from settings: [String: Any]) -> [String: Any] {
         var settings = settings
         var hooks = settings["hooks"] as? [String: Any] ?? [:]
-        let pre = (hooks["PreToolUse"] as? [[String: Any]] ?? [])
-            .filter { !commands($0).contains(command) }
-        // Leave no empty scaffolding behind.
-        if pre.isEmpty { hooks.removeValue(forKey: "PreToolUse") } else { hooks["PreToolUse"] = pre }
+
+        for (event, value) in hooks {
+            guard let groups = value as? [[String: Any]] else { continue }
+            let kept = groups.filter { !commands($0).contains(command) }
+            // Leave no empty scaffolding behind.
+            if kept.isEmpty { hooks.removeValue(forKey: event) } else { hooks[event] = kept }
+        }
+
         if hooks.isEmpty { settings.removeValue(forKey: "hooks") } else { settings["hooks"] = hooks }
         return settings
     }
 
-    private static func groups(_ settings: [String: Any]) -> [[String: Any]] {
+    private static func groups(_ settings: [String: Any], event: String) -> [[String: Any]] {
         let hooks = settings["hooks"] as? [String: Any] ?? [:]
-        return hooks["PreToolUse"] as? [[String: Any]] ?? []
+        return hooks[event] as? [[String: Any]] ?? []
     }
 
     private static func commands(_ group: [String: Any]) -> [String] {
         (group["hooks"] as? [[String: Any]] ?? []).compactMap { $0["command"] as? String }
+    }
+
+    // MARK: - Whole agents
+
+    /// Everything one agent needs, in one write: the event that waits for an
+    /// answer, plus the ones that only say where a session got to.
+    public static func adding(agent: AgentKind, command: String,
+                              to settings: [String: Any]) -> [String: Any] {
+        var settings = adding(command: command, to: settings, event: agent.permissionEvent)
+        for event in agent.lifecycleEvents {
+            settings = adding(command: command, to: settings, event: event,
+                              timeout: reportTimeout)
+        }
+        return settings
+    }
+
+    public static func isInstalled(agent: AgentKind, command: String,
+                                   in settings: [String: Any]) -> Bool {
+        isInstalled(settings, command: command, event: agent.permissionEvent)
     }
 
     // MARK: - Disk

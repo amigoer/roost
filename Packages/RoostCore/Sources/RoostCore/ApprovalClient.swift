@@ -27,6 +27,16 @@ public enum ApprovalClient {
         }
     }
 
+    /// Tells the app where a session got to. Nothing is waited for: a
+    /// lifecycle hook runs in the path of the thing it is describing.
+    public static func report(_ session: SessionReport,
+                              path: String = ApprovalSocket.path(),
+                              timeout: TimeInterval = 1) {
+        _ = connected(path: path, timeout: timeout) { fd in
+            send(.session(session), on: fd) ? true : nil
+        }
+    }
+
     private static func connected<Value>(path: String, timeout: TimeInterval,
                                          _ body: (Int32) -> Value?) -> Value? {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)

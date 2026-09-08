@@ -24,6 +24,9 @@ public struct Session: Sendable, Identifiable, Hashable {
     /// one: the process stays alive, so this is what separates a conversation
     /// you just replied in from one you abandoned days ago.
     public var lastActivityAt: Date
+    /// Processes to climb looking for the window this session sits in, for
+    /// agents whose own pid Roost never learns. Empty means climb from `pid`.
+    public var ancestors: [pid_t]
 
     /// Idle long enough that it is clutter rather than context.
     public func isStale(now: Date = Date(), threshold: TimeInterval = 1800) -> Bool {
@@ -55,7 +58,8 @@ public struct Session: Sendable, Identifiable, Hashable {
                 cwd: String, entrypoint: String?,
                 model: String? = nil,
                 startedAt: Date, state: SessionState, stateSince: Date,
-                activity: String?, detail: String? = nil, lastActivityAt: Date) {
+                activity: String?, detail: String? = nil, lastActivityAt: Date,
+                ancestors: [pid_t] = []) {
         self.id = id
         self.agent = agent
         self.pid = pid
@@ -69,5 +73,6 @@ public struct Session: Sendable, Identifiable, Hashable {
         self.activity = activity
         self.detail = detail
         self.lastActivityAt = lastActivityAt
+        self.ancestors = ancestors
     }
 }

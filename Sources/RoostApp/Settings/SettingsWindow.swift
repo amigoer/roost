@@ -48,7 +48,7 @@ struct SettingsView: View {
     /// Tall enough for English, which is the longer of the two languages here;
     /// Chinese leaves a few points of slack rather than resizing the window
     /// under the cursor when the language changes.
-    static let size = CGSize(width: 460, height: 872)
+    static let size = CGSize(width: 460, height: 960)
 
     @Bindable var model: RoostModel
     let retitle: (String) -> Void
@@ -88,6 +88,18 @@ struct SettingsView: View {
                 Text(strings.appSection)
             } footer: {
                 note("\(strings.updatesNote)\n\n\(strings.loginNote)")
+            }
+
+            Section {
+                Toggle(strings.watchAgent(.codex), isOn: Binding(
+                    get: { model.watchesCodex },
+                    set: { model.setWatchesCodex($0) }
+                ))
+                .toggleStyle(.switch)
+            } header: {
+                Text(strings.agentsSection)
+            } footer: {
+                note(strings.codexNote)
             }
 
             Section {

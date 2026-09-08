@@ -54,6 +54,11 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     public let agent: String?
     public let receivedAt: Date
 
+    /// Which tool is asking. Absent from a payload written by an older hook,
+    /// which only ever spoke for Claude Code.
+    private let heldSource: AgentKind?
+    public var source: AgentKind { heldSource ?? .claudeCode }
+
     /// What answering this actually means.
     ///
     /// Stored optional because a bundle can be left holding an older
@@ -65,6 +70,7 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     enum CodingKeys: String, CodingKey {
         case id, sessionId, cwd, tool, detail, agent, receivedAt
         case heldKind = "kind"
+        case heldSource = "source"
     }
 
     public var projectName: String { URL(fileURLWithPath: cwd).lastPathComponent }
@@ -82,7 +88,8 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
 
     public init(id: String = UUID().uuidString, sessionId: String, cwd: String,
                 tool: String, detail: String?, agent: String? = nil,
-                receivedAt: Date = Date(), kind: HeldKind = .permission) {
+                receivedAt: Date = Date(), kind: HeldKind = .permission,
+                source: AgentKind = .claudeCode) {
         self.id = id
         self.sessionId = sessionId
         self.cwd = cwd
@@ -91,6 +98,7 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
         self.agent = agent
         self.receivedAt = receivedAt
         self.heldKind = kind
+        self.heldSource = source
     }
 }
 

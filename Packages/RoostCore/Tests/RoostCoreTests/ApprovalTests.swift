@@ -272,3 +272,43 @@ final class RegistryDeduplicationTests: XCTestCase {
         XCTAssertEqual(result.first?.pid, 58497)
     }
 }
+
+final class SessionLinkTests: XCTestCase {
+    private let cli = "b2d3426a-ead4-4837-b918-e6cb3ce5446b"
+    private let record = "local_3833ff2d-7f71-4390-ad52-e436bb174137"
+
+    /// The app puts `local_` back on whatever it is given and focuses the
+    /// record it finds, so its own id -- prefix removed -- lands on the
+    /// original conversation and imports nothing.
+    func testAKnownSessionOpensByTheAppsOwnId() {
+        XCTAssertEqual(SessionLink.resumeParameter(desktopRecordId: record, cliSessionId: cli,
+                                                   entrypoint: "claude-desktop"),
+                       "3833ff2d-7f71-4390-ad52-e436bb174137")
+    }
+
+    /// A terminal session has no record anywhere, so the CLI id is right: the
+    /// import is how it reaches the desktop app at all.
+    func testATerminalSessionOpensByCliId() {
+        XCTAssertEqual(SessionLink.resumeParameter(desktopRecordId: nil, cliSessionId: cli,
+                                                   entrypoint: "cli"),
+                       cli)
+    }
+
+    /// The case that duplicated: the app started this one and its record is
+    /// moments from being written. The CLI id would import a copy beside it.
+    func testABrandNewDesktopSessionWaitsForItsRecord() {
+        XCTAssertNil(SessionLink.resumeParameter(desktopRecordId: nil, cliSessionId: cli,
+                                                 entrypoint: "claude-desktop"))
+    }
+
+    func testTheUrlCarriesTheParameter() throws {
+        let url = try XCTUnwrap(SessionLink.resume(session: cli))
+        XCTAssertEqual(url.absoluteString, "claude://resume?session=\(cli)")
+    }
+
+    func testNothingToOpenIsNoLink() {
+        XCTAssertNil(SessionLink.resume(session: ""))
+        XCTAssertNil(SessionLink.resumeParameter(desktopRecordId: nil, cliSessionId: "",
+                                                 entrypoint: "cli"))
+    }
+}

@@ -39,6 +39,34 @@ public enum DesktopSessions {
             .appending(path: "Library/Application Support/Claude/claude-code-sessions")
     }
 
+    /// The app's own id for a conversation, asked fresh.
+    ///
+    /// Asked at the moment of a click rather than carried on a session: one
+    /// started seconds ago is not in the last scan, and opening it by the wrong
+    /// id duplicates it.
+    ///
+    /// When both records exist -- the one the app started and a copy some
+    /// earlier import made -- the app's own is the original, and the one worth
+    /// landing in.
+    public static func recordId(forCLISessionId cliSessionId: String,
+                                in directory: URL = defaultDirectory()) -> String? {
+        guard let walker = FileManager.default.enumerator(
+            at: directory, includingPropertiesForKeys: nil) else { return nil }
+
+        let copyId = "local_\(cliSessionId)"
+        var copy: String?
+        for case let url as URL in walker where url.pathExtension == "json" {
+            guard url.lastPathComponent.hasPrefix("local_"),
+                  let data = try? Data(contentsOf: url),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  json["cliSessionId"] as? String == cliSessionId,
+                  let id = json["sessionId"] as? String
+            else { continue }
+            if id == copyId { copy = id } else { return id }
+        }
+        return copy
+    }
+
     /// Keyed by CLI session id: the store keys by its own id and carries
     /// `cliSessionId` as the join back to the transcripts.
     ///

@@ -21,6 +21,19 @@ public enum IslandGeometry {
         public static let optionHeight: CGFloat = 26
         public static let bottomPadding: CGFloat = 6
 
+        /// A plan says which session it belongs to on one line, then spends
+        /// everything else on the plan's own words.
+        public static let planHeaderHeight: CGFloat = 28
+        public static let planLineHeight: CGFloat = 15
+        /// Enough to judge a plan by; the conversation has the rest.
+        public static let planLines = 6
+        public static let planButtonsHeight: CGFloat = 34
+
+        public static var planHeight: CGFloat {
+            planHeaderHeight + CGFloat(planLines) * planLineHeight
+                + planButtonsHeight + bottomPadding
+        }
+
         public static func height(_ kind: HeldKind?) -> CGFloat {
             switch kind {
             case nil: 0
@@ -29,6 +42,7 @@ public enum IslandGeometry {
                 promptHeight
                     + CGFloat(min(question.options.count, ApprovalGate.maxOptions)) * optionHeight
                     + bottomPadding
+            case .plan: planHeight
             }
         }
     }
@@ -97,8 +111,27 @@ public enum IslandGeometry {
     /// numbers, and drift between the two would mean clicking the wrong answer.
     public static func approvalHit(offsetFromTop y: CGFloat, offsetFromLeft x: CGFloat,
                                    notch: CGSize, islandWidth: CGFloat) -> ApprovalHit? {
-        let top = heldTop(notch: notch)
-        let buttonTop = top + (Held.permissionHeight - Approval.buttonHeight) / 2
+        buttonHit(offsetFromTop: y, offsetFromLeft: x, islandWidth: islandWidth,
+                  bandTop: heldTop(notch: notch), bandHeight: Held.permissionHeight)
+    }
+
+    /// Which verdict on a plan a point lands on. The buttons sit under the
+    /// plan text rather than beside it, because the plan is what the width is
+    /// for.
+    public static func planHit(offsetFromTop y: CGFloat, offsetFromLeft x: CGFloat,
+                               notch: CGSize, islandWidth: CGFloat) -> ApprovalHit? {
+        let bandTop = heldTop(notch: notch) + Held.planHeaderHeight
+            + CGFloat(Held.planLines) * Held.planLineHeight
+        return buttonHit(offsetFromTop: y, offsetFromLeft: x, islandWidth: islandWidth,
+                         bandTop: bandTop, bandHeight: Held.planButtonsHeight)
+    }
+
+    /// The pair of trailing buttons both verdict cards end in, measured from
+    /// wherever their row happens to start.
+    private static func buttonHit(offsetFromTop y: CGFloat, offsetFromLeft x: CGFloat,
+                                  islandWidth: CGFloat,
+                                  bandTop: CGFloat, bandHeight: CGFloat) -> ApprovalHit? {
+        let buttonTop = bandTop + (bandHeight - Approval.buttonHeight) / 2
         guard y >= buttonTop, y <= buttonTop + Approval.buttonHeight else { return nil }
 
         let allowStart = islandWidth - Approval.trailingInset - Approval.buttonWidth

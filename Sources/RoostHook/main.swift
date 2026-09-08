@@ -23,10 +23,17 @@ var kind = HeldKind.permission
 // What the row shows under the title. For a question that is the question
 // itself; the keyed lookup below knows nothing about `questions`.
 var detail = ApprovalGate.detail(tool: tool, input: input)
-if ApprovalGate.asks.contains(tool) {
+switch tool {
+case "AskUserQuestion":
     guard let question = ApprovalGate.question(from: input) else { exit(0) }
     kind = .question(question)
     detail = ApprovalGate.summary(of: question)
+case "ExitPlanMode":
+    guard let plan = ApprovalGate.plan(from: input) else { exit(0) }
+    kind = .plan(plan)
+    detail = PlanPreview.make(plan, limit: 1).lines.first
+default:
+    break
 }
 
 // `agent_type` alone also describes a whole session started with --agent, so

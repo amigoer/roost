@@ -84,6 +84,9 @@ struct IslandView: View {
                 case .question(let question):
                     QuestionCard(request: held, question: question,
                                  hoveredOption: state.hoveredOption, strings: strings)
+                case .plan(let plan):
+                    PlanCard(request: held, plan: plan,
+                             hovered: state.hoveredApproval, strings: strings)
                 }
             }
 

@@ -42,6 +42,12 @@ public final class ApprovalCenter {
     }
 
     public func decide(_ id: String, _ decision: ApprovalDecision) {
+        // A verdict on a plan is not a permission: allowing it starts the work,
+        // and refusing it has to leave the session somewhere it can ask why.
+        if case .plan = pending.first(where: { $0.id == id })?.kind {
+            reply(id, decision == .allow ? .approvePlan : .revisePlan)
+            return
+        }
         reply(id, ApprovalReply(decision: decision,
                                 reason: decision == .allow ? "Allowed from the island"
                                                            : "Denied from the island"))

@@ -88,6 +88,17 @@ public struct Strings: Sendable, Hashable {
     /// usually puts above it.
     public var questionChip: String { pick("Question", "问题") }
 
+    // MARK: - Plan card
+
+    public var planChip: String { pick("Plan", "方案") }
+    public var approve: String { pick("Approve", "通过") }
+    /// Sends the plan back rather than rejecting the work: the session stays in
+    /// plan mode and asks what to change.
+    public var revise: String { pick("Revise", "修改") }
+    public func moreLines(_ count: Int) -> String {
+        pick("+\(count) more line\(count == 1 ? "" : "s")", "还有 \(count) 行")
+    }
+
     // MARK: - Session row
 
     public var working: String { pick("working", "工作中") }

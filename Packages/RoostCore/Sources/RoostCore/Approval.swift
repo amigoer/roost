@@ -2,14 +2,16 @@ import Foundation
 
 /// What a held call is asking for, and everything the island needs to answer it.
 ///
-/// Two shapes, because two different things stop a session: a tool that needs
-/// permission, and a question that needs an answer. They come down the same
-/// wire and land on the same card.
+/// Three shapes, because three different things stop a session: a tool that
+/// needs permission, a question that needs an answer, and a plan that needs a
+/// verdict. They come down the same wire and land on the same card.
 public enum HeldKind: Codable, Sendable, Hashable {
     /// A tool call waiting for Deny or Allow.
     case permission
     /// An `AskUserQuestion`, with the options as the session offered them.
     case question(HeldQuestion)
+    /// An `ExitPlanMode`, carrying the plan it wants to start working from.
+    case plan(String)
 }
 
 /// A question a session asked, in the shape the island can answer it.
@@ -73,6 +75,7 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     /// the conversation.
     public var blockReason: BlockReason {
         if case .question = kind { return .question }
+        if case .plan = kind { return .planApproval }
         if let agent { return .agentNeedsInput(label: agent) }
         return .permissionPrompt(tool: tool)
     }
@@ -132,6 +135,19 @@ public struct ApprovalReply: Codable, Sendable {
     public static func answer(_ chosen: String) -> ApprovalReply {
         ApprovalReply(decision: .deny, reason: "The user answered from Roost: \(chosen)")
     }
+
+    /// Approving a plan is letting `ExitPlanMode` run: the prompt it would have
+    /// raised *is* the plan approval, so allowing it starts the work.
+    public static let approvePlan = ApprovalReply(decision: .allow,
+                                                  reason: "Plan approved from Roost")
+
+    /// Sending a plan back leaves the session in plan mode, where it can ask
+    /// what to change. The island has nowhere to type the answer, so it says
+    /// so rather than inventing feedback nobody gave.
+    public static let revisePlan = ApprovalReply(
+        decision: .deny,
+        reason: "The user sent the plan back from Roost without written feedback. "
+              + "Stay in plan mode and ask what to change.")
 }
 
 /// Which tool calls are worth holding.
@@ -144,13 +160,13 @@ public enum ApprovalGate {
     /// so the common path never pays for a round trip.
     public static let silent: Set<String> = [
         "Read", "Glob", "Grep", "NotebookRead", "TodoWrite", "BashOutput", "KillShell",
-        "ExitPlanMode", "SlashCommand", "ListMcpResources",
+        "SlashCommand", "ListMcpResources",
     ]
 
     /// Calls that are a question to the person by nature. Held in every mode,
     /// because no permission setting answers them: `bypassPermissions` skips
     /// prompts, it does not decide which deploy target you meant.
-    public static let asks: Set<String> = ["AskUserQuestion"]
+    public static let asks: Set<String> = ["AskUserQuestion", "ExitPlanMode"]
 
     /// Tools whose prompt an accept-edits session has already answered once.
     public static let edits: Set<String> = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
@@ -221,6 +237,16 @@ public enum ApprovalGate {
     /// to a row the way every other detail is.
     public static func summary(of question: HeldQuestion) -> String? {
         TranscriptReader.condensed(question.prompt)
+    }
+
+    /// The plan behind an `ExitPlanMode`, or nil when there is nothing to read.
+    ///
+    /// A verdict on a plan nobody can see is a guess, so an empty one is left
+    /// to prompt where the plan is actually printed.
+    public static func plan(from input: [String: Any]?) -> String? {
+        guard let plan = input?["plan"] as? String,
+              !plan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return plan
     }
 }
 

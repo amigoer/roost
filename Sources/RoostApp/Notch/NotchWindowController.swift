@@ -18,7 +18,10 @@ final class NotchWindowController {
     /// Panels stay a fixed generous size and only the SwiftUI content animates
     /// inside them. Resizing an NSPanel per frame makes NSHostingView relayout
     /// every tick and the morph stutters.
-    private static let panelHeight: CGFloat = 420
+    /// Tall enough for the largest island there is: a plan card above a full
+    /// list. The panel is click-through, so spare height costs nothing, while
+    /// too little of it silently clips the bottom row.
+    private static let panelHeight: CGFloat = 620
     private static let minPanelWidth: CGFloat = 620
     /// Slack around the collapsed island. Generous vertically because the
     /// cursor almost always approaches the notch from below, and that is what
@@ -193,17 +196,24 @@ final class NotchWindowController {
     /// The island is centred on its own screen, so a click has to be measured
     /// from that island's left edge before the card's buttons mean anything.
     private func approvalHit(at point: NSPoint, on uuid: String) -> IslandGeometry.ApprovalHit? {
-        guard case .permission = model.approvals.current?.kind,
-              let screen = screen(uuid) else { return nil }
+        guard let kind = model.approvals.current?.kind, let screen = screen(uuid) else { return nil }
         let notch = screen.signalAnchorRect.size
         let width = IslandGeometry.expandedSize(notch: notch,
                                                 sessionCount: model.visibleSessions.count,
                                                 hasFooter: model.staleCount > 0,
                                                 heldHeight: model.heldHeight).width
-        return IslandGeometry.approvalHit(offsetFromTop: screen.frame.maxY - point.y,
-                                          offsetFromLeft: point.x - (screen.frame.midX - width / 2),
-                                          notch: notch,
-                                          islandWidth: width)
+        let y = screen.frame.maxY - point.y
+        let x = point.x - (screen.frame.midX - width / 2)
+        switch kind {
+        case .permission:
+            return IslandGeometry.approvalHit(offsetFromTop: y, offsetFromLeft: x,
+                                              notch: notch, islandWidth: width)
+        case .plan:
+            return IslandGeometry.planHit(offsetFromTop: y, offsetFromLeft: x,
+                                          notch: notch, islandWidth: width)
+        case .question:
+            return nil
+        }
     }
 
     /// An answer is a full-width row, so only the distance down the island

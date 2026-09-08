@@ -35,20 +35,26 @@ happening? The notch stays the notch. Something needs you? It grows.
 
 ## The chick
 
-One mascot, six faces, on a 15×12 pixel grid. The body wears the state's colour,
+One mascot, seven faces, on a 15×12 pixel grid. The body wears the state's colour,
 so a glance answers *what is going on* before any glyph has to be read; the
 silhouette and the orange beak carry the identity. The eyes and the badge in the
 top-right corner say exactly which state it is.
 
+Every face has a pulse of its own. All of it happens on the grid — whole cells,
+held frames, nothing interpolated — so the chick is as crisp mid-hop as it is
+standing still, and a change of state is *played* rather than cut to: the chick
+reacts on the way in, and the body's colour crosses to the next one instead of
+snapping to it.
+
 | | State | Badge | What it means |
 |:--:|:--|:--:|:--|
-| <img src="docs/mascot/running.png" width="52"> | `running` | blue, no badge | Producing output or running a tool. Cool and receding, because work in progress is the least of your worries. Hops one pixel, once per second. |
-| <img src="docs/mascot/waiting.png" width="52"> | `waiting` | orange **?** | Stopped on something only you can answer: a question, a plan, a permission prompt. Brand orange is spent here and nowhere else. |
-| <img src="docs/mascot/stalled.png" width="52"> | `stalled` | red **!** | A tool call has been outstanding past the grace period. |
-| <img src="docs/mascot/done.png" width="52"> | `done` | green **✓** | The turn ended. Nothing is burning. |
-| <img src="docs/mascot/error.png" width="52"> | `error` | red **✕** | Something failed. |
-| <img src="docs/mascot/idle.png" width="52"> | `idle` | grey **z** | Left alone long enough to be clutter. Folded into a single footer line. |
-| <img src="docs/mascot/spent.png" width="52"> | `spent` | red **—** | A quota window has run out, and every session is stopped on something no session can fix. No new ink: grey already means nothing is moving and red already means it matters. |
+| <img src="docs/mascot/running.png" width="52"> | `running` | blue, no badge | Producing output or running a tool. Cool and receding, because work in progress is the least of your worries. Hops, lands in a crouch, and blinks twice, on a 2.6 s cycle. |
+| <img src="docs/mascot/waiting.png" width="52"> | `waiting` | orange **?** | Stopped on something only you can answer: a question, a plan, a permission prompt. Brand orange is spent here and nowhere else. Bobs twice and cheeps at you, with the badge blinking behind it. |
+| <img src="docs/mascot/stalled.png" width="52"> | `stalled` | red **!** | A tool call has been outstanding past the grace period. Sweats a drop down its cheek, then sags a pixel: tired rather than urgent, because it is waiting on a tool and not on you. |
+| <img src="docs/mascot/done.png" width="52"> | `done` | green **✓** | The turn ended. Nothing is burning, so it arrives with a jump and then just breathes. |
+| <img src="docs/mascot/error.png" width="52"> | `error` | red **✕** | Something failed. Shivers, sideways, and then holds still. |
+| <img src="docs/mascot/idle.png" width="52"> | `idle` | grey **z** | Left alone long enough to be clutter. Folded into a single footer line. Asleep, with a z that drifts off the corner. |
+| <img src="docs/mascot/spent.png" width="52"> | `spent` | red **—** | A quota window has run out, and every session is stopped on something no session can fix. No new ink: grey already means nothing is moving and red already means it matters. The one face that does not move at all — only the bar pulses, because the only thing still happening is a clock. |
 
 The same mark appears on the collapsed island and on every row of the expanded
 list, and the two never disagree. There is deliberately **no menu bar item** —
@@ -63,7 +69,7 @@ one more icon up there is the clutter this app exists to remove.
 
 | Part | Says |
 |:--|:--|
-| Agent mark | Whose session it is: Claude Code's terminal creature, or Codex's ring. Shape carries it, because the mascot beside it is already spending colour on the state. The Claude one is its published mark cell for cell — that mark is drawn on a 1.5-unit step inside a 24-unit box, so it lands on this app's grid exactly rather than having to be redrawn to look like it. |
+| Agent mark | Whose session it is: Claude Code's terminal creature, or Codex's ring. Shape carries it, because the mascot beside it is already spending colour on the state. The Claude one is its published mark cell for cell — that mark is drawn on a 1.5-unit step inside a 24-unit box, so it lands on this app's grid exactly rather than having to be redrawn to look like it. The mark moves too, and only while the session is producing something: Claude's walks and blinks, Codex's lights one cell of its ring at a time around it. A stopped session's mark blinks and nothing else, so a row's left edge says what its right edge does. |
 | `project · title` | Which repo, then which conversation. The repo answers "do I care" faster. |
 | Second line | What it is doing *right now*: the tool, then the argument a person would recognise — the command, the file, the pattern — pulled straight out of the transcript. Blocked rows say why instead. |
 | Model | What it is running, from the desktop app's own record of the session. |
@@ -88,10 +94,18 @@ if nobody answers within 60 seconds — the hook prints nothing and the session
 prompts exactly as it always did. This can make a tool call wait. It cannot
 change what one does.
 
+Holding a call is also taking it away: while the island has it, the agent's own
+prompt has not appeared yet, so there is exactly one place to answer and it may
+not be the one you are looking at. **Clicking the row hands it back** — the same
+`ask` the timeout sends — and then goes to the session, which is now prompting
+the way it always would have. Roost stands in for that prompt. It does not own
+it.
+
 | Event | Carries |
 |:--|:--|
 | `PermissionRequest` | Every tool call that was about to raise a prompt — whatever the tool, whatever the session's permission mode. Nothing else ever fires it, and a session with no way to prompt (`claude -p`) never raises it at all: that one fails on its own rather than waiting for anybody, so it has no business on the island. |
 | `PreToolUse` | Only `AskUserQuestion` and `ExitPlanMode`: the two calls that stop a session without being permissions at all, which no permission event fires for. Every other call it brings is dropped inside the hook, so the common path costs one set lookup and no round trip. |
+| `UserPromptSubmit`, `Stop` | When a turn started and when it ended — the two facts the transcript records last and worst. Neither waits for an answer; they only sharpen a row that is already on screen. |
 
 `PermissionRequest` runs where a prompt is about to appear and nowhere else, so
 whatever reaches the island *was* a prompt. There is nothing to work out and
@@ -160,7 +174,8 @@ stalled on the same grace period a transcript would.
 
 ## How it reads state
 
-No daemon, no account, no telemetry. Roost reads files you already have:
+No daemon, no account, no telemetry. Roost reads files you already have, and —
+where they are written too late to be worth reading — is told instead:
 
 | Source | Used for |
 |:--|:--|
@@ -178,6 +193,34 @@ dangling tool call plus elapsed time is the only evidence available:
 - Transcripts are parsed only when the file's modification date changes; state is
   re-derived from cached facts every tick, so a tool crossing the grace line is
   noticed without re-reading anything.
+
+A transcript says when a turn *ended* and never says when one started, so the
+person pressing return has to be read out of it: a `user` record carrying
+anything but a tool result is a new turn, and it retires the stop reason before
+it along with any call still outstanding when they typed. Without that a session
+goes on reporting `done` from the moment a prompt is sent until the model's first
+message lands — a median of **13 seconds** here, and up to three minutes — which
+is exactly the gap this app exists to close.
+
+### Being told rather than reading
+
+That fixes the start of a turn, because the prompt is on disk 0.2 s after it is
+sent. It cannot fix the end of one. A turn's last message is not written until
+the model has finished writing it — a median of **15 seconds** after the work
+actually stopped, measured over the sessions on this machine — and for all of it
+the answer is already on screen while the row still reads as busy.
+
+No amount of reading fixes that, so Roost stopped only reading. With the hooks
+installed, Claude Code also announces `UserPromptSubmit` and `Stop`, which fire
+at the boundary itself. The files still say *what* every session is — the
+project, the title, the model, the tool and its argument — and the hook decides
+only *when* the turn turned. Whichever spoke last wins, so a `Stop` overrules a
+transcript that has not caught up, and the next line written overrules the
+`Stop`.
+
+A Claude Code session never gets a row from its hooks the way a Codex one does.
+It has a registry, so a reported row would be a duplicate that outlived the
+process by twelve hours.
 
 Sessions that have been `done` for **30 minutes** stop being listed and collapse
 into an `N idle` footer. Sessions Roost hears about only through hooks are
@@ -207,7 +250,12 @@ racing for one entry is a broken login for the sake of a number in a footer. An
 expired token is simply no credential, and the status line reading stands until
 Claude Code next rotates it. Nothing about your sessions goes with the request.
 It is off until you turn it on, and reading the token raises a keychain prompt
-the first time and again after an update.
+the first time and again after an update — ad-hoc signing makes every build a
+new identity, so *Always Allow* lasts exactly as long as that build does. The
+token is read **once** and held for as long as it is good for, rather than on
+every poll: at one poll a minute, re-reading it turned a single grant into a
+dialog a minute. With nothing to find, it looks again every fifteen minutes and
+not on every tick.
 
 Both windows show as ten-cell tracks along the footer, drawn on the grid the
 chick is drawn on: the question is how many cells are left, and cells are
@@ -252,6 +300,17 @@ true before Roost opened.
 While something is blocked, the island widens on a timer — 60 s, then 300 s. The
 badge blinks at one fixed rate throughout, because animation *frequency* is what
 disrupts a primary task; width is what peripheral vision actually picks up.
+
+A spent window takes the wider step immediately, whatever the timer says: it is
+the one state whose right-hand slot holds a clock rather than a digit, and
+`4h48m` does not fit the resting slot in English or, by a wider margin, in
+Chinese.
+
+The count itself wears a filled disc only while something is blocked, where it
+is that same escalation in the same colour and black-on-colour is what carries a
+single digit across a room. Quiet states are the digit alone: a ring drawn
+around a number nobody is being asked to act on is weight competing with the one
+mark that is meant to hold the eye.
 
 ## Design rules
 
@@ -364,7 +423,7 @@ swift test --package-path Packages/RoostCore
 ```
 Sources/RoostApp/
   Notch/       Overlay panel, cutout geometry, global hover monitor
-  UI/          Island shape, collapsed strip, rows, cards, mascot art
+  UI/          Island shape, collapsed strip, rows, cards, mascot art and motion
   Settings/    The one window, and the only way out of the app
   Approvals/   The socket the helpers talk to
   Resources/   App icon, generated from the same pixel grid

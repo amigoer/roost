@@ -26,9 +26,14 @@ public final class ApprovalCenter {
     public var current: ApprovalRequest? { pending.first }
 
     public func handle(_ request: ApprovalRequest) async -> ApprovalReply {
-        guard await ApprovalGate.shouldAsk(tool: request.tool,
-                                           permissionMode: permissionMode?(request.sessionId)) else {
-            return ApprovalReply(decision: .ask)
+        // A question is held in every mode, so reading the mode would only be
+        // a disk hit on the way to the same answer.
+        if case .permission = request.kind {
+            guard await ApprovalGate.shouldAsk(
+                tool: request.tool,
+                permissionMode: permissionMode?(request.sessionId)) else {
+                return ApprovalReply(decision: .ask)
+            }
         }
         pending.append(request)
         return await withCheckedContinuation { continuation in
@@ -37,11 +42,26 @@ public final class ApprovalCenter {
     }
 
     public func decide(_ id: String, _ decision: ApprovalDecision) {
+        reply(id, ApprovalReply(decision: decision,
+                                reason: decision == .allow ? "Allowed from the island"
+                                                           : "Denied from the island"))
+    }
+
+    /// Picks one of a question's options by position, the way the card is read.
+    ///
+    /// Silently does nothing for an index the question does not have: the card
+    /// and the hit test derive their layout separately, and a click that lands
+    /// between them must not send an answer nobody chose.
+    public func answer(_ id: String, option index: Int) {
+        guard let request = pending.first(where: { $0.id == id }),
+              case .question(let question) = request.kind,
+              question.options.indices.contains(index) else { return }
+        reply(id, .answer(question.options[index].label))
+    }
+
+    private func reply(_ id: String, _ reply: ApprovalReply) {
         pending.removeAll { $0.id == id }
-        waiters.removeValue(forKey: id)?.resume(
-            returning: ApprovalReply(decision: decision,
-                                     reason: decision == .allow ? "Allowed from the island"
-                                                                : "Denied from the island"))
+        waiters.removeValue(forKey: id)?.resume(returning: reply)
     }
 
     /// The hook stops waiting on its own schedule, so a card nobody answered
@@ -51,8 +71,7 @@ public final class ApprovalCenter {
             .filter { now.timeIntervalSince($0.receivedAt) > ApprovalSocket.timeout }
             .map(\.id)
         for id in stale {
-            pending.removeAll { $0.id == id }
-            waiters.removeValue(forKey: id)?.resume(returning: ApprovalReply(decision: .ask))
+            reply(id, ApprovalReply(decision: .ask))
         }
     }
 }

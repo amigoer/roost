@@ -82,6 +82,12 @@ public struct Strings: Sendable, Hashable {
     public var deny: String { pick("Deny", "拒绝") }
     public var allow: String { pick("Allow", "允许") }
 
+    // MARK: - Question card
+
+    /// Stands in when a question arrives without the short chip Claude Code
+    /// usually puts above it.
+    public var questionChip: String { pick("Question", "问题") }
+
     // MARK: - Session row
 
     public var working: String { pick("working", "工作中") }

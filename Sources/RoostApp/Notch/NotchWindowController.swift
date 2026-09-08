@@ -111,6 +111,7 @@ final class NotchWindowController {
             if !hovering {
                 island.state.hoveredIndex = nil
                 island.state.hoveredApproval = nil
+                island.state.hoveredOption = nil
                 island.state.hoveredMenu = false
             }
             // Grow the hit rect immediately, not on the animation's schedule,
@@ -121,9 +122,9 @@ final class NotchWindowController {
             guard let self, let island = islands[uuid] else { return }
             island.state.hoveredMenu = menuHit(at: point, on: uuid)
             island.state.hoveredApproval = approvalHit(at: point, on: uuid)
-            island.state.hoveredIndex = island.state.hoveredApproval == nil
-                ? rowIndex(at: point, on: uuid)
-                : nil
+            island.state.hoveredOption = optionIndex(at: point, on: uuid)
+            let onHeldCall = island.state.hoveredApproval != nil || island.state.hoveredOption != nil
+            island.state.hoveredIndex = onHeldCall ? nil : rowIndex(at: point, on: uuid)
         }
         hover.onClick = { [weak self] point in
             guard let self else { return }
@@ -131,9 +132,15 @@ final class NotchWindowController {
                 onGear?()
                 return
             }
-            if let held = model.approvals.current, let hit = approvalHit(at: point, on: uuid) {
-                model.approvals.decide(held.id, hit == .allow ? .allow : .deny)
-                return
+            if let held = model.approvals.current {
+                if let hit = approvalHit(at: point, on: uuid) {
+                    model.approvals.decide(held.id, hit == .allow ? .allow : .deny)
+                    return
+                }
+                if let option = optionIndex(at: point, on: uuid) {
+                    model.approvals.answer(held.id, option: option)
+                    return
+                }
             }
             guard let index = rowIndex(at: point, on: uuid),
                   index < model.visibleSessions.count else { return }
@@ -166,7 +173,7 @@ final class NotchWindowController {
         return IslandGeometry.rowIndex(atOffsetFromTop: screen.frame.maxY - point.y,
                                        notch: screen.signalAnchorRect.size,
                                        rowCount: model.visibleSessions.count,
-                                       hasApproval: model.isPinned)
+                                       heldHeight: model.heldHeight)
     }
 
     private func menuHit(at point: NSPoint, on uuid: String) -> Bool {
@@ -176,7 +183,7 @@ final class NotchWindowController {
         let width = IslandGeometry.expandedSize(notch: notch,
                                                 sessionCount: model.visibleSessions.count,
                                                 hasFooter: model.staleCount > 0,
-                                                hasApproval: model.isPinned).width
+                                                heldHeight: model.heldHeight).width
         return IslandGeometry.menuHit(offsetFromTop: screen.frame.maxY - point.y,
                                       offsetFromLeft: point.x - (screen.frame.midX - width / 2),
                                       notch: notch,
@@ -186,16 +193,27 @@ final class NotchWindowController {
     /// The island is centred on its own screen, so a click has to be measured
     /// from that island's left edge before the card's buttons mean anything.
     private func approvalHit(at point: NSPoint, on uuid: String) -> IslandGeometry.ApprovalHit? {
-        guard model.isPinned, let screen = screen(uuid) else { return nil }
+        guard case .permission = model.approvals.current?.kind,
+              let screen = screen(uuid) else { return nil }
         let notch = screen.signalAnchorRect.size
         let width = IslandGeometry.expandedSize(notch: notch,
                                                 sessionCount: model.visibleSessions.count,
                                                 hasFooter: model.staleCount > 0,
-                                                hasApproval: true).width
+                                                heldHeight: model.heldHeight).width
         return IslandGeometry.approvalHit(offsetFromTop: screen.frame.maxY - point.y,
                                           offsetFromLeft: point.x - (screen.frame.midX - width / 2),
                                           notch: notch,
                                           islandWidth: width)
+    }
+
+    /// An answer is a full-width row, so only the distance down the island
+    /// matters -- the same measurement the session rows below it use.
+    private func optionIndex(at point: NSPoint, on uuid: String) -> Int? {
+        guard case .question(let question) = model.approvals.current?.kind,
+              let screen = screen(uuid) else { return nil }
+        return IslandGeometry.optionIndex(offsetFromTop: screen.frame.maxY - point.y,
+                                          notch: screen.signalAnchorRect.size,
+                                          optionCount: question.options.count)
     }
 
     private func updateHitRect(_ uuid: String) {
@@ -208,7 +226,7 @@ final class NotchWindowController {
                                        expanded: expanded,
                                        sessionCount: model.visibleSessions.count,
                                        hasFooter: model.staleCount > 0,
-                                       hasApproval: model.isPinned)
+                                       heldHeight: model.heldHeight)
         let padX = expanded ? 0 : Self.hitPaddingX
         let padY = expanded ? 0 : Self.hitPaddingY
         island.hover.setHitRect(NSRect(x: screen.frame.midX - size.width / 2 - padX,

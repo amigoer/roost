@@ -79,6 +79,10 @@ final class RoostModel {
     /// only while the cursor happens to be on one particular notch.
     var isPinned: Bool { approvals.current != nil }
 
+    /// How much room the held call takes above the rows, and zero when there is
+    /// none. Read by the view and by the hit test, which must agree.
+    var heldHeight: CGFloat { IslandGeometry.Held.height(approvals.current?.kind) }
+
     /// Asked when a tool call is about to be held, so it comes off disk rather
     /// than out of the last scan: a conversation opened seconds ago, or a mode
     /// switched seconds ago, is exactly when a wrong answer shows a card.

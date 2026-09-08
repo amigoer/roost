@@ -152,7 +152,7 @@ final class ApprovalGeometryTests: XCTestCase {
     private let width = IslandGeometry.expandedWidth
 
     private var buttonMiddle: CGFloat {
-        IslandGeometry.rowsTopInset(notch: notch) + IslandGeometry.Approval.height / 2
+        IslandGeometry.rowsTopInset(notch: notch) + IslandGeometry.Held.permissionHeight / 2
     }
 
     func testAllowIsTheRightmostButton() {
@@ -182,16 +182,17 @@ final class ApprovalGeometryTests: XCTestCase {
         let cardTop = IslandGeometry.rowsTopInset(notch: notch)
         XCTAssertNil(IslandGeometry.approvalHit(offsetFromTop: cardTop + 2, offsetFromLeft: x,
                                                 notch: notch, islandWidth: width))
-        XCTAssertNil(IslandGeometry.approvalHit(offsetFromTop: cardTop + IslandGeometry.Approval.height - 2,
+        XCTAssertNil(IslandGeometry.approvalHit(offsetFromTop: cardTop + IslandGeometry.Held.permissionHeight - 2,
                                                 offsetFromLeft: x, notch: notch, islandWidth: width))
     }
 
     /// The card pushes the list down; a click meant for the first row must not
     /// land on the card, and vice versa.
     func testRowsShiftBelowTheCard() {
-        let firstRow = IslandGeometry.rowsTopInset(notch: notch, hasApproval: true) + 4
+        let card = IslandGeometry.Held.height(.permission)
+        let firstRow = IslandGeometry.rowsTopInset(notch: notch, heldHeight: card) + 4
         XCTAssertEqual(IslandGeometry.rowIndex(atOffsetFromTop: firstRow, notch: notch,
-                                               rowCount: 3, hasApproval: true), 0)
+                                               rowCount: 3, heldHeight: card), 0)
         XCTAssertNil(IslandGeometry.approvalHit(offsetFromTop: firstRow, offsetFromLeft: width - 40,
                                                 notch: notch, islandWidth: width))
     }

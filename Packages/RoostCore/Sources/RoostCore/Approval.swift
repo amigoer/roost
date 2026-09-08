@@ -1,5 +1,43 @@
 import Foundation
 
+/// What a held call is asking for, and everything the island needs to answer it.
+///
+/// Two shapes, because two different things stop a session: a tool that needs
+/// permission, and a question that needs an answer. They come down the same
+/// wire and land on the same card.
+public enum HeldKind: Codable, Sendable, Hashable {
+    /// A tool call waiting for Deny or Allow.
+    case permission
+    /// An `AskUserQuestion`, with the options as the session offered them.
+    case question(HeldQuestion)
+}
+
+/// A question a session asked, in the shape the island can answer it.
+public struct HeldQuestion: Codable, Sendable, Hashable {
+    public struct Option: Codable, Sendable, Hashable {
+        public let label: String
+        /// What choosing it means, shown after the label where there is room.
+        public let description: String?
+
+        public init(label: String, description: String? = nil) {
+            self.label = label
+            self.description = description
+        }
+    }
+
+    /// What was asked, in the session's own words.
+    public let prompt: String
+    /// The chip Claude Code puts above the question, e.g. "Auth method".
+    public let header: String?
+    public let options: [Option]
+
+    public init(prompt: String, header: String? = nil, options: [Option]) {
+        self.prompt = prompt
+        self.header = header
+        self.options = options
+    }
+}
+
 /// A tool call held at the gate, waiting for a person to say yes or no.
 public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     public let id: String
@@ -14,19 +52,34 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     public let agent: String?
     public let receivedAt: Date
 
+    /// What answering this actually means.
+    ///
+    /// Stored optional because a bundle can be left holding an older
+    /// `roost-hook`, whose payloads predate the field and only ever meant a
+    /// permission. Approvals must not stop working over a missing key.
+    private let heldKind: HeldKind?
+    public var kind: HeldKind { heldKind ?? .permission }
+
+    enum CodingKeys: String, CodingKey {
+        case id, sessionId, cwd, tool, detail, agent, receivedAt
+        case heldKind = "kind"
+    }
+
     public var projectName: String { URL(fileURLWithPath: cwd).lastPathComponent }
 
-    /// Why the session behind this call cannot move. Which of the two it is
-    /// depends on who made the call, because "Explore needs input" and "needs
-    /// permission: Bash" send you to different places in the conversation.
+    /// Why the session behind this call cannot move. Which of them it is
+    /// decides where the row sends you: "Explore needs input", "asked you a
+    /// question" and "needs permission: Bash" are three different places in
+    /// the conversation.
     public var blockReason: BlockReason {
+        if case .question = kind { return .question }
         if let agent { return .agentNeedsInput(label: agent) }
         return .permissionPrompt(tool: tool)
     }
 
     public init(id: String = UUID().uuidString, sessionId: String, cwd: String,
                 tool: String, detail: String?, agent: String? = nil,
-                receivedAt: Date = Date()) {
+                receivedAt: Date = Date(), kind: HeldKind = .permission) {
         self.id = id
         self.sessionId = sessionId
         self.cwd = cwd
@@ -34,6 +87,7 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
         self.detail = detail
         self.agent = agent
         self.receivedAt = receivedAt
+        self.heldKind = kind
     }
 }
 
@@ -69,6 +123,15 @@ public struct ApprovalReply: Codable, Sendable {
         self.decision = decision
         self.reason = reason
     }
+
+    /// Answering a question is a denial on the wire.
+    ///
+    /// There is no hook decision that means "here is the answer": blocking the
+    /// call and handing back a reason is the only way to put words in front of
+    /// the model, and the reason is exactly what it reads next.
+    public static func answer(_ chosen: String) -> ApprovalReply {
+        ApprovalReply(decision: .deny, reason: "The user answered from Roost: \(chosen)")
+    }
 }
 
 /// Which tool calls are worth holding.
@@ -81,8 +144,13 @@ public enum ApprovalGate {
     /// so the common path never pays for a round trip.
     public static let silent: Set<String> = [
         "Read", "Glob", "Grep", "NotebookRead", "TodoWrite", "BashOutput", "KillShell",
-        "AskUserQuestion", "ExitPlanMode", "SlashCommand", "ListMcpResources",
+        "ExitPlanMode", "SlashCommand", "ListMcpResources",
     ]
+
+    /// Calls that are a question to the person by nature. Held in every mode,
+    /// because no permission setting answers them: `bypassPermissions` skips
+    /// prompts, it does not decide which deploy target you meant.
+    public static let asks: Set<String> = ["AskUserQuestion"]
 
     /// Tools whose prompt an accept-edits session has already answered once.
     public static let edits: Set<String> = ["Write", "Edit", "MultiEdit", "NotebookEdit"]
@@ -101,6 +169,7 @@ public enum ApprovalGate {
     /// the outside it is indistinguishable from a prompt that was real.
     public static func shouldAsk(tool: String, permissionMode: String?) -> Bool {
         guard mayPrompt(tool: tool) else { return false }
+        guard !asks.contains(tool) else { return true }
         switch permissionMode {
         case nil, "default": return true
         case "acceptEdits": return !edits.contains(tool)
@@ -112,6 +181,46 @@ public enum ApprovalGate {
     /// The argument a person needs to decide, by the same rules the rows use.
     public static func detail(tool: String, input: [String: Any]?) -> String? {
         TranscriptReader.detail(from: input)
+    }
+
+    /// How many answers a card has room for. `AskUserQuestion` offers between
+    /// two and four, so this is headroom rather than a real ceiling.
+    public static let maxOptions = 5
+
+    /// The question behind an `AskUserQuestion`, or nil when the island has no
+    /// business answering it.
+    ///
+    /// Deliberately narrow. One single-choice question is a card with buttons
+    /// on it; several questions, or one that takes several answers, is a form,
+    /// and half an answer sent back as a denial is worse than letting the
+    /// session ask the way it always did.
+    public static func question(from input: [String: Any]?) -> HeldQuestion? {
+        guard let questions = input?["questions"] as? [[String: Any]],
+              questions.count == 1,
+              let asked = questions.first,
+              asked["multiSelect"] as? Bool != true,
+              let prompt = asked["question"] as? String, !prompt.isEmpty,
+              let raw = asked["options"] as? [[String: Any]],
+              (1...maxOptions).contains(raw.count)
+        else { return nil }
+
+        let options = raw.compactMap { option -> HeldQuestion.Option? in
+            guard let label = option["label"] as? String, !label.isEmpty else { return nil }
+            return HeldQuestion.Option(label: label,
+                                       description: option["description"] as? String)
+        }
+        // An option that could not be read is an option nobody can pick, and a
+        // card missing one of its answers is worse than no card.
+        guard options.count == raw.count else { return nil }
+        return HeldQuestion(prompt: prompt,
+                            header: (asked["header"] as? String).flatMap { $0.isEmpty ? nil : $0 },
+                            options: options)
+    }
+
+    /// What a session row shows for a held question: the question itself, cut
+    /// to a row the way every other detail is.
+    public static func summary(of question: HeldQuestion) -> String? {
+        TranscriptReader.condensed(question.prompt)
     }
 }
 

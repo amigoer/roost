@@ -25,7 +25,7 @@ struct IslandView: View {
                             expanded: showsPanel,
                             sessionCount: model.visibleSessions.count,
                             hasFooter: model.staleCount > 0,
-                            hasApproval: model.approvals.current != nil)
+                            heldHeight: model.heldHeight)
     }
 
     var body: some View {
@@ -78,7 +78,13 @@ struct IslandView: View {
                 .padding(.bottom, 5)
 
             if let held = model.approvals.current {
-                ApprovalCard(request: held, hovered: state.hoveredApproval, strings: strings)
+                switch held.kind {
+                case .permission:
+                    ApprovalCard(request: held, hovered: state.hoveredApproval, strings: strings)
+                case .question(let question):
+                    QuestionCard(request: held, question: question,
+                                 hoveredOption: state.hoveredOption, strings: strings)
+                }
             }
 
             if model.visibleSessions.isEmpty {

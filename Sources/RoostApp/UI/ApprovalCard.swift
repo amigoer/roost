@@ -36,7 +36,7 @@ struct ApprovalCard: View {
         }
         .padding(.leading, 12)
         .padding(.trailing, IslandGeometry.Approval.trailingInset)
-        .frame(height: IslandGeometry.Approval.height)
+        .frame(height: IslandGeometry.Held.permissionHeight)
     }
 
     private func button(_ title: String, tint: Color, active: Bool) -> some View {

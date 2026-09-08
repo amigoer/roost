@@ -11,6 +11,7 @@ final class IslandState {
     var isExpanded = false
     var hoveredIndex: Int?
     var hoveredApproval: IslandGeometry.ApprovalHit?
+    var hoveredMenu = false
 
     /// A held tool call opens every island: it is addressed to the person, not
     /// to a display, and they may be looking at either one.

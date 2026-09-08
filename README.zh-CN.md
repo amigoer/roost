@@ -12,7 +12,7 @@
 <img src="https://img.shields.io/badge/macOS-14%2B-1c1206?style=flat-square" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
-<img src="https://img.shields.io/badge/%E5%8F%AA%E8%AF%BB-%E6%97%A0%20hook%20%C2%B7%20%E6%97%A0%E7%BD%91%E7%BB%9C-30D158?style=flat-square" alt="只读">
+<img src="https://img.shields.io/badge/%E4%BC%9A%E8%AF%9D%E6%95%B0%E6%8D%AE-%E4%B8%8D%E7%A6%BB%E5%BC%80%E4%BD%A0%E7%9A%84%20Mac-30D158?style=flat-square" alt="会话数据不离开你的 Mac">
 <img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
 <a href="https://linux.do/u/amigoer"><img src="https://img.shields.io/badge/linux.do-%40amigoer-1c1206?style=flat-square&logo=discourse&logoColor=white" alt="linux.do @amigoer"></a>
 
@@ -93,7 +93,7 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 
 ## 它怎么判断状态
 
-不用装 hook，没有常驻守护进程，不联网。Roost 只读你本来就有的文件：
+没有常驻守护进程，不需要账号，不上报任何东西。Roost 只读你本来就有的文件：
 
 | 来源 | 用途 |
 |:--|:--|
@@ -110,6 +110,11 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
   所以工具跨过宽限线这件事不需要重读任何文件就能发现。
 
 `done` 状态超过 **30 分钟**的会话不再单独列出，折叠成底部的 `N idle` 一行。
+
+Roost 唯一发出的请求是每 6 小时向 GitHub 的 releases API 查一次有没有新版本，
+除了请求本身不带任何信息。有新版时菜单按钮上出现一个点、底部多一行提示；
+安装仍然是手动的——ad-hoc 签名的包没有值得校验的签名，不该自己覆盖自己。
+不想要的话在菜单里关掉 *Check automatically*。
 
 ## 升级策略
 
@@ -140,7 +145,8 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
   Roost 这边发出的链接已经是对的。
 - **点 Deny 或 Allow** 回答被按住的工具调用。有卡片在等的时候岛会自己保持展开，
   不需要鼠标一直停在那儿。
-- **右键点击**刘海——不管岛在不在——打开菜单：批准开关、强制状态、退出。
+- **点面板右上角的 ⋯** 打开菜单：批准开关、检查更新、强制状态、退出。右键点击刘海
+  是同一个菜单，岛收起、没东西可点的时候也能用。
 - 没有刘海的显示器会得到一条 185 pt 的替代条，位置就在刘海本该在的地方。
 
 ## 安装

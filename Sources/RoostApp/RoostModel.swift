@@ -8,6 +8,24 @@ final class RoostModel {
     /// Tool calls held by the hook, waiting for an answer.
     let approvals = ApprovalCenter()
 
+    /// A newer published build, once one has been seen.
+    var update: ReleaseInfo?
+
+    /// Remembered across launches, and on unless it is turned off.
+    var checksForUpdates = UserDefaults.standard.object(forKey: updatesKey) as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(checksForUpdates, forKey: Self.updatesKey)
+            if !checksForUpdates { update = nil }
+        }
+    }
+
+    static let updatesKey = "checksForUpdates"
+
+    var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    }
+
+
     /// Set by the debug menu to force a state while detection is being tuned.
     var previewOverride: PreviewOverride?
 
@@ -28,6 +46,7 @@ final class RoostModel {
 
     private let scanner = SessionScanner()
     private var refreshTask: Task<Void, Never>?
+    private var updateTask: Task<Void, Never>?
 
     var level: SignalLevel {
         if let previewOverride { return previewOverride.level }
@@ -75,6 +94,24 @@ final class RoostModel {
 
     var blockedCount: Int {
         previewOverride?.blockedCount ?? blockedSessions.count
+    }
+
+    func startCheckingForUpdates() {
+        updateTask?.cancel()
+        updateTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.checkForUpdate()
+                try? await Task.sleep(for: .seconds(UpdateCheck.interval))
+            }
+        }
+    }
+
+    /// `force` is the menu asking directly, which works even with the periodic
+    /// check switched off.
+    func checkForUpdate(force: Bool = false) async {
+        guard checksForUpdates || force else { return }
+        guard let latest = await UpdateCheck.fetch() else { return }
+        update = UpdateCheck.isNewer(latest.version, than: currentVersion) ? latest : nil
     }
 
     func startRefreshing() {

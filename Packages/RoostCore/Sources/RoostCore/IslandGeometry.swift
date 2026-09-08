@@ -19,6 +19,24 @@ public enum IslandGeometry {
 
     public enum ApprovalHit: Sendable { case allow, deny }
 
+    /// The menu button in the header.
+    ///
+    /// The app has no Dock icon and no menu bar item, so without something
+    /// visible here the only way to reach the menu -- including Quit -- is a
+    /// right-click nobody can see.
+    public enum Menu {
+        public static let buttonSize: CGFloat = 20
+        public static let trailingInset: CGFloat = 14
+    }
+
+    /// Whether a point lands on the header's menu button.
+    public static func menuHit(offsetFromTop y: CGFloat, offsetFromLeft x: CGFloat,
+                               notch: CGSize, islandWidth: CGFloat) -> Bool {
+        guard y >= 0, y <= notch.height else { return false }
+        let start = islandWidth - Menu.trailingInset - Menu.buttonSize
+        return x >= start && x <= start + Menu.buttonSize
+    }
+
     /// Vertical gap between the island's top and the first row, i.e. the header.
     public static func rowsTopInset(notch: CGSize, hasApproval: Bool = false) -> CGFloat {
         notch.height + 6 + (hasApproval ? Approval.height : 0)

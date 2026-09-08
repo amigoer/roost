@@ -12,7 +12,7 @@ A macOS menu-bar companion that answers one question from the corner of your eye
 <img src="https://img.shields.io/badge/macOS-14%2B-1c1206?style=flat-square" alt="macOS 14+">
 <img src="https://img.shields.io/badge/Swift-6.0-FF9F0A?style=flat-square" alt="Swift 6.0">
 <img src="https://img.shields.io/badge/UI-SwiftUI%20%2B%20AppKit-8E8E93?style=flat-square" alt="SwiftUI + AppKit">
-<img src="https://img.shields.io/badge/read--only-no%20hooks%2C%20no%20network-30D158?style=flat-square" alt="Read-only">
+<img src="https://img.shields.io/badge/your%20sessions-never%20leave%20your%20mac-30D158?style=flat-square" alt="Sessions never leave your Mac">
 <img src="https://img.shields.io/badge/license-MIT-64D2FF?style=flat-square" alt="MIT License">
 <a href="https://linux.do/u/amigoer"><img src="https://img.shields.io/badge/linux.do-%40amigoer-1c1206?style=flat-square&logo=discourse&logoColor=white" alt="linux.do @amigoer"></a>
 
@@ -100,8 +100,7 @@ because clicking the wrong half of a card would answer the wrong question.
 
 ## How it reads state
 
-No hooks to install, no daemon, no network. Roost only reads files you already
-have:
+No daemon, no account, no telemetry. Roost reads files you already have:
 
 | Source | Used for |
 |:--|:--|
@@ -122,6 +121,12 @@ dangling tool call plus elapsed time is the only evidence available:
 
 Sessions that have been `done` for **30 minutes** stop being listed and collapse
 into an `N idle` footer.
+
+The one request Roost makes is an update check against GitHub's releases API,
+every six hours, sending nothing but the request itself. A newer version puts a
+dot on the menu button and a line in the footer; installing it stays manual,
+because an ad-hoc signed build has no signature worth checking. Switch the check
+off under *Check automatically*.
 
 ## Escalation
 
@@ -157,8 +162,9 @@ The code enforces these, and the comments say so:
   Nothing an outside app can change; the link Roost sends is already correct.
 - **Click Deny or Allow** on a held tool call. The island stays open on its own
   while one is waiting, so answering never depends on the cursor being there.
-- **Right-click** the notch — island or bare cutout — for the menu: approvals,
-  forced states, quit.
+- **Click the ⋯** in the panel's top-right for the menu: approvals, updates,
+  forced states, quit. Right-clicking the notch opens the same menu, including
+  when the island is collapsed and there is nothing to point at.
 - Displays without a notch get a 185 pt stand-in strip, centred where a notch
   would be.
 

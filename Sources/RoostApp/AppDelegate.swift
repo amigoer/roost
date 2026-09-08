@@ -10,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         await model.approvals.handle(request)
     }
     private var approvalItem: NSMenuItem?
+    private var updateItem: NSMenuItem?
+    private var autoUpdateItem: NSMenuItem?
     private var hitSyncTask: Task<Void, Never>?
 
     /// The hook binary rides inside the app bundle, so enabling approvals is
@@ -22,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.setActivationPolicy(.accessory)
         notch.start()
         model.startRefreshing()
+        model.startCheckingForUpdates()
         model.approvals.permissionMode = { [weak model] in model?.permissionMode(for: $0) }
         approvals.start()
 
@@ -53,6 +56,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         approvals.toolTip = "Adds a PreToolUse hook to ~/.claude/settings.json"
         menu.addItem(approvals)
         approvalItem = approvals
+
+        let update = NSMenuItem(title: "Check for updates",
+                                action: #selector(handleUpdate), keyEquivalent: "")
+        update.target = self
+        menu.addItem(update)
+        updateItem = update
+
+        let automatic = NSMenuItem(title: "Check automatically",
+                                   action: #selector(toggleAutoUpdate), keyEquivalent: "")
+        automatic.target = self
+        menu.addItem(automatic)
+        autoUpdateItem = automatic
+
         menu.addItem(.separator())
         menu.addItem(previewItem("Live detection", nil))
         menu.addItem(.separator())
@@ -94,6 +110,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         try? HookInstall.write(updated)
     }
 
+    /// One item, two jobs: it offers the download once there is one to offer,
+    /// and asks again otherwise.
+    @objc private func handleUpdate() {
+        if let update = model.update {
+            NSWorkspace.shared.open(update.page)
+            return
+        }
+        Task { await model.checkForUpdate(force: true) }
+    }
+
+    @objc private func toggleAutoUpdate() {
+        model.checksForUpdates.toggle()
+    }
+
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
     }
@@ -103,6 +133,9 @@ extension AppDelegate: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         approvalItem?.state = HookInstall.isInstalled(HookInstall.read(), command: Self.hookCommand)
             ? .on : .off
+        updateItem?.title = model.update.map { "Download Roost \($0.version)…" }
+            ?? "Check for updates"
+        autoUpdateItem?.state = model.checksForUpdates ? .on : .off
     }
 }
 

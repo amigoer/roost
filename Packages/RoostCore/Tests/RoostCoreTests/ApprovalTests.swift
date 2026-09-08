@@ -184,3 +184,69 @@ final class ApprovalCenterTests: XCTestCase {
         XCTAssertTrue(center.pending.isEmpty)
     }
 }
+
+final class UpdateCheckTests: XCTestCase {
+    func testOrdersByComponent() {
+        XCTAssertTrue(UpdateCheck.isNewer("0.1.2", than: "0.1.1"))
+        XCTAssertTrue(UpdateCheck.isNewer("0.2.0", than: "0.1.9"))
+        XCTAssertTrue(UpdateCheck.isNewer("1.0.0", than: "0.9.9"))
+        XCTAssertFalse(UpdateCheck.isNewer("0.1.1", than: "0.1.1"))
+        XCTAssertFalse(UpdateCheck.isNewer("0.1.0", than: "0.1.1"))
+    }
+
+    /// 0.1.10 is newer than 0.1.9, which string comparison gets backwards.
+    func testDoubleDigitsAreNumbers() {
+        XCTAssertTrue(UpdateCheck.isNewer("0.1.10", than: "0.1.9"))
+        XCTAssertFalse(UpdateCheck.isNewer("0.1.9", than: "0.1.10"))
+    }
+
+    func testShorterVersionsPadWithZeros() {
+        XCTAssertTrue(UpdateCheck.isNewer("0.2", than: "0.1.9"))
+        XCTAssertFalse(UpdateCheck.isNewer("0.1", than: "0.1.0"))
+    }
+
+    /// A reply that makes no sense must never look like an update.
+    func testGarbageIsNotAnUpdate() {
+        XCTAssertFalse(UpdateCheck.isNewer("", than: "0.1.1"))
+        XCTAssertFalse(UpdateCheck.isNewer("latest", than: "0.1.1"))
+    }
+
+    func testReadsTheTagAndPage() throws {
+        let body = """
+        {"tag_name":"v0.1.2","html_url":"https://github.com/amigoer/roost/releases/tag/v0.1.2",
+         "draft":false,"prerelease":false}
+        """
+        let release = try XCTUnwrap(UpdateCheck.release(from: Data(body.utf8)))
+        XCTAssertEqual(release.version, "0.1.2")
+        XCTAssertEqual(release.page.lastPathComponent, "v0.1.2")
+    }
+
+    func testDraftsAndPrereleasesAreIgnored() {
+        let draft = #"{"tag_name":"v9.9.9","html_url":"https://x.test","draft":true}"#
+        let early = #"{"tag_name":"v9.9.9","html_url":"https://x.test","prerelease":true}"#
+        XCTAssertNil(UpdateCheck.release(from: Data(draft.utf8)))
+        XCTAssertNil(UpdateCheck.release(from: Data(early.utf8)))
+    }
+}
+
+final class MenuHitTests: XCTestCase {
+    private let notch = CGSize(width: 190, height: 38)
+    private let width = IslandGeometry.expandedWidth
+
+    func testTheMenuButtonSitsInTheHeaderCorner() {
+        let x = width - IslandGeometry.Menu.trailingInset - IslandGeometry.Menu.buttonSize / 2
+        XCTAssertTrue(IslandGeometry.menuHit(offsetFromTop: notch.height / 2, offsetFromLeft: x,
+                                             notch: notch, islandWidth: width))
+    }
+
+    func testBelowTheHeaderIsNotTheMenu() {
+        let x = width - IslandGeometry.Menu.trailingInset - IslandGeometry.Menu.buttonSize / 2
+        XCTAssertFalse(IslandGeometry.menuHit(offsetFromTop: notch.height + 10, offsetFromLeft: x,
+                                              notch: notch, islandWidth: width))
+    }
+
+    func testTheRestOfTheHeaderIsNotTheMenu() {
+        XCTAssertFalse(IslandGeometry.menuHit(offsetFromTop: notch.height / 2, offsetFromLeft: 40,
+                                              notch: notch, islandWidth: width))
+    }
+}

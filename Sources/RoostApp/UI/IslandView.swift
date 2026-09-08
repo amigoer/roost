@@ -92,14 +92,22 @@ struct IslandView: View {
                 }
             }
 
-            if model.staleCount > 0 {
+            if model.staleCount > 0 || model.update != nil {
                 HStack(spacing: 7) {
-                    MascotView(face: .idle, cell: MascotView.small)
-                    Text("\(model.staleCount) idle")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Brand.textTertiary)
+                    if model.staleCount > 0 {
+                        MascotView(face: .idle, cell: MascotView.small)
+                        Text("\(model.staleCount) idle")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Brand.textTertiary)
+                    }
+                    Spacer(minLength: 6)
+                    if let update = model.update {
+                        Text("Roost \(update.version) available")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(MascotFace.done.colour.swiftUI)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 12)
                 .padding(.top, 4)
             }
@@ -122,12 +130,36 @@ struct IslandView: View {
 
             Color.clear.frame(width: notchSize.width)
 
-            headline
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            HStack(spacing: 8) {
+                headline.font(.system(size: 11, weight: .semibold, design: .rounded))
+                menuButton
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .frame(height: notchSize.height)
+    }
+
+    /// The way to the menu. A dot on it when there is a newer build, since
+    /// that is the only other thing in there worth going to look for.
+    private var menuButton: some View {
+        Image(systemName: "ellipsis")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(state.hoveredMenu ? Brand.textPrimary : Brand.textSecondary)
+            .frame(width: IslandGeometry.Menu.buttonSize,
+                   height: IslandGeometry.Menu.buttonSize)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.white.opacity(state.hoveredMenu ? 0.14 : 0.06))
+            )
+            .overlay(alignment: .topTrailing) {
+                if model.update != nil {
+                    Circle()
+                        .fill(MascotFace.done.colour.swiftUI)
+                        .frame(width: 6, height: 6)
+                        .offset(x: 2, y: -2)
+                }
+            }
     }
 
     /// One line for the whole fleet, loudest fact first.

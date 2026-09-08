@@ -143,6 +143,18 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 - **右键点击**刘海——不管岛在不在——打开菜单：批准开关、强制状态、退出。
 - 没有刘海的显示器会得到一条 185 pt 的替代条，位置就在刘海本该在的地方。
 
+## 安装
+
+从 [Releases](https://github.com/amigoer/roost/releases) 下载 DMG，把 Roost 拖进
+Applications。构建是 ad-hoc 签名而非公证过的，所以 macOS 会拦第一次启动——右键
+选"打开"，或者：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Roost.app
+```
+
+需要 macOS 14 或更高版本。
+
 ## 构建
 
 需要 macOS 14+、Xcode 16（Swift 6）和 [XcodeGen](https://github.com/yonaskolb/XcodeGen)。

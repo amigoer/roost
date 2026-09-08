@@ -162,6 +162,18 @@ The code enforces these, and the comments say so:
 - Displays without a notch get a 185 pt stand-in strip, centred where a notch
   would be.
 
+## Install
+
+Take the DMG from [Releases](https://github.com/amigoer/roost/releases) and drag
+Roost into Applications. The build is ad-hoc signed rather than notarised, so
+macOS refuses the first launch — right-click the app and choose Open, or:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Roost.app
+```
+
+Requires macOS 14 or later.
+
 ## Build
 
 Requires macOS 14+, Xcode 16 (Swift 6) and [XcodeGen](https://github.com/yonaskolb/XcodeGen).

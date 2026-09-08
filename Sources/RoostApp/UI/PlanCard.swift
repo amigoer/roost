@@ -11,6 +11,8 @@ import RoostCore
 struct PlanCard: View {
     let request: ApprovalRequest
     let plan: String
+    /// The conversation whose plan this is, by the name its row would use.
+    let title: String?
     let hovered: IslandGeometry.ApprovalHit?
     let strings: Strings
 
@@ -31,11 +33,11 @@ struct PlanCard: View {
     private var header: some View {
         HStack(spacing: 10) {
             MascotView(face: .waiting, cell: MascotView.small)
-            (Text(request.projectName).foregroundStyle(Brand.textSecondary)
-                + Text(" · ").foregroundStyle(Brand.textSecondary.opacity(0.5))
-                + Text(strings.planChip).foregroundStyle(MascotFace.waiting.colour.swiftUI))
-                .font(.system(size: 11, weight: .medium))
-                .lineLimit(1)
+            CardTitle(project: request.projectName, title: title)
+            Text(strings.planChip)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(MascotFace.waiting.colour.swiftUI)
+                .fixedSize()
             Spacer(minLength: 8)
         }
         .padding(.horizontal, 12)
@@ -88,5 +90,9 @@ struct PlanCard: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(active ? tint : tint.opacity(0.14))
             )
+            // The island is click-through, so a button lights up from a
+            // coordinate rather than from a press. Fading rather than cutting
+            // is what makes that read as the cursor being on it.
+            .animation(.easeOut(duration: 0.14), value: active)
     }
 }

@@ -10,7 +10,7 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            AgentMarkView(kind: session.agent)
+            AgentMarkView(kind: session.agent, working: session.state == .running)
 
             VStack(alignment: .leading, spacing: 2) {
                 title
@@ -45,6 +45,11 @@ struct SessionRowView: View {
                 .fill(isHovered ? Color.white.opacity(0.07) : .clear)
                 .padding(.horizontal, 6)
         )
+        // The row leans towards the cursor. The island is click-through and
+        // paints its own hover, so without something moving there is nothing
+        // to say the pointer landed on a row rather than near one.
+        .offset(x: isHovered ? 2 : 0)
+        .animation(.spring(response: 0.26, dampingFraction: 0.7), value: isHovered)
     }
 
     /// Project first: which repo it is answers "do I care" faster than the

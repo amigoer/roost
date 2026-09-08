@@ -11,6 +11,8 @@ import RoostCore
 struct QuestionCard: View {
     let request: ApprovalRequest
     let question: HeldQuestion
+    /// The conversation asking, by the name its row would use.
+    let title: String?
     let hoveredOption: Int?
     let strings: Strings
 
@@ -29,25 +31,28 @@ struct QuestionCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Which session is asking, then what it asked. The project comes first for
-    /// the same reason it does on a row: it answers "do I care" fastest.
+    /// Which session is asking, then what it asked -- in the shape a row uses,
+    /// so the card and the list never name the same session two ways. The
+    /// question's own header rides the second line as the lede, where a row
+    /// carries what a session is doing.
     private var prompt: some View {
         HStack(spacing: 10) {
             MascotView(face: .waiting, cell: MascotView.small)
 
             VStack(alignment: .leading, spacing: 2) {
-                (Text(request.projectName).foregroundStyle(Brand.textSecondary)
-                    + Text(" · ").foregroundStyle(Brand.textSecondary.opacity(0.5))
-                    + Text(question.header ?? strings.questionChip)
-                        .foregroundStyle(MascotFace.waiting.colour.swiftUI))
-                    .font(.system(size: 11, weight: .medium))
-                    .lineLimit(1)
+                CardTitle(project: request.projectName, title: title)
 
-                Text(question.prompt)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Brand.textPrimary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                HStack(spacing: 6) {
+                    Text(question.header ?? strings.questionChip)
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundStyle(MascotFace.waiting.colour.swiftUI)
+                        .fixedSize()
+                    Text(question.prompt)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Brand.textPrimary)
+                }
+                .lineLimit(1)
+                .truncationMode(.tail)
             }
 
             Spacer(minLength: 8)
@@ -80,5 +85,28 @@ struct QuestionCard: View {
                 .fill(active ? MascotFace.waiting.colour.swiftUI : Color.white.opacity(0.05))
                 .padding(.horizontal, 6)
         )
+        // The island is click-through, so an answer lights up from a coordinate
+        // rather than from a press. Fading rather than cutting is what makes
+        // that read as the cursor being on it.
+        .animation(.easeOut(duration: 0.14), value: active)
+    }
+}
+
+/// A held call's first line: the project, then the conversation.
+///
+/// The same shape a row uses, because they are the same session. A card that
+/// named only the project left the reader to find out whose question it was
+/// from a row underneath it, which is the wrong way round -- the card is the
+/// thing being answered.
+struct CardTitle: View {
+    let project: String
+    let title: String?
+
+    var body: some View {
+        (Text(project).foregroundStyle(Brand.textSecondary)
+            + Text(title.map { " · \($0)" } ?? "").foregroundStyle(Brand.textPrimary))
+            .font(.system(size: 11, weight: .medium))
+            .lineLimit(1)
+            .truncationMode(.middle)
     }
 }

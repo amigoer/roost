@@ -8,6 +8,8 @@ import RoostCore
 /// arrives as a coordinate rather than as a press on a control.
 struct ApprovalCard: View {
     let request: ApprovalRequest
+    /// The conversation the call belongs to, by the name its row would use.
+    let title: String?
     let hovered: IslandGeometry.ApprovalHit?
     let strings: Strings
 
@@ -16,11 +18,16 @@ struct ApprovalCard: View {
             MascotView(face: .waiting, cell: MascotView.small)
 
             VStack(alignment: .leading, spacing: 3) {
-                (Text(request.tool).foregroundStyle(MascotFace.waiting.colour.swiftUI)
-                    + Text(strings.wantsToRunIn).foregroundStyle(Brand.textSecondary)
-                    + Text(request.projectName).foregroundStyle(Brand.textPrimary))
-                    .font(.system(size: 11, weight: .medium))
-                    .lineLimit(1)
+                // Which session, then which call. The session comes first for
+                // the same reason it does on a row and on every other card.
+                HStack(spacing: 6) {
+                    CardTitle(project: request.projectName, title: title)
+                    Text(request.tool)
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundStyle(MascotFace.waiting.colour.swiftUI)
+                        .fixedSize()
+                }
+                .lineLimit(1)
 
                 Text(request.detail ?? strings.noArguments)
                     .font(.system(size: 11, design: .monospaced))
@@ -49,5 +56,9 @@ struct ApprovalCard: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(active ? tint : tint.opacity(0.14))
             )
+            // The island is click-through, so a button lights up from a
+            // coordinate rather than from a press. Fading rather than cutting
+            // is what makes that read as the cursor being on it.
+            .animation(.easeOut(duration: 0.14), value: active)
     }
 }

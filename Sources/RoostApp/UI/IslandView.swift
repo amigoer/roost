@@ -4,9 +4,9 @@ import RoostCore
 /// The island: collapsed it is the signal, expanded it is the session list.
 ///
 /// Design rule this file enforces: growth belongs to `.blocked` alone. The
-/// mascot's own motion is a one-cell hop while running and a blinking badge
-/// while blocked, so a change of *shape* at the notch still carries exactly one
-/// meaning and never has to be interpreted.
+/// mascot has a pulse of its own in every state -- see `PixelChick.clip` -- but
+/// all of it happens inside the same box, so a change of *shape* at the notch
+/// still carries exactly one meaning and never has to be interpreted.
 struct IslandView: View {
     @Bindable var model: RoostModel
     /// This screen's own hover state.
@@ -67,6 +67,12 @@ struct IslandView: View {
         }
     }
 
+    /// The conversation a held call belongs to. The card names it rather than
+    /// leaving it to the row underneath: the card is the thing being answered.
+    private func heldTitle(_ held: ApprovalRequest) -> String? {
+        model.sessions.first { $0.id == held.sessionId }?.name
+    }
+
     /// What the collapsed island says instead of a count while a window is
     /// spent: how long until it comes back, which is the only thing left to do
     /// something about.
@@ -90,12 +96,13 @@ struct IslandView: View {
             if let held = model.approvals.current {
                 switch held.kind {
                 case .permission:
-                    ApprovalCard(request: held, hovered: state.hoveredApproval, strings: strings)
+                    ApprovalCard(request: held, title: heldTitle(held),
+                                 hovered: state.hoveredApproval, strings: strings)
                 case .question(let question):
-                    QuestionCard(request: held, question: question,
+                    QuestionCard(request: held, question: question, title: heldTitle(held),
                                  hoveredOption: state.hoveredOption, strings: strings)
                 case .plan(let plan):
-                    PlanCard(request: held, plan: plan,
+                    PlanCard(request: held, plan: plan, title: heldTitle(held),
                              hovered: state.hoveredApproval, strings: strings)
                 }
             }
@@ -181,6 +188,10 @@ struct IslandView: View {
         Image(systemName: "gearshape.fill")
             .font(.system(size: 11, weight: .bold))
             .foregroundStyle(state.hoveredMenu ? Brand.textPrimary : Brand.textSecondary)
+            // The one control on the island, and a gear that turns under the
+            // cursor is the cheapest way to say it is one.
+            .rotationEffect(.degrees(state.hoveredMenu ? 60 : 0))
+            .animation(.spring(response: 0.4, dampingFraction: 0.6), value: state.hoveredMenu)
             .frame(width: IslandGeometry.Menu.buttonSize,
                    height: IslandGeometry.Menu.buttonSize)
             .background(

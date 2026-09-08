@@ -61,13 +61,21 @@ public enum ApprovalGate {
     public static func mayPrompt(tool: String) -> Bool { !silent.contains(tool) }
 
     /// The real policy, applied by the app, which knows the session's mode.
-    /// `nil` mode means unknown, which is treated as the strictest case.
+    ///
+    /// Only the modes that still raise a prompt are held. `nil` is a session
+    /// with no record of its own -- one started in a terminal, which prompts
+    /// unless it was told not to. Every mode the desktop app has shipped apart
+    /// from `default` loosens permissions rather than tightening them, so a
+    /// name this does not recognise is let through with the rest: a card for a
+    /// call the session would have run anyway is not a safety net, and from
+    /// the outside it is indistinguishable from a prompt that was real.
     public static func shouldAsk(tool: String, permissionMode: String?) -> Bool {
         guard mayPrompt(tool: tool) else { return false }
         switch permissionMode {
-        case "bypassPermissions", "plan": return false
+        case nil, "default": return true
         case "acceptEdits": return !edits.contains(tool)
-        default: return true
+        // "auto", "bypassPermissions", "plan", and whatever comes next.
+        default: return false
         }
     }
 

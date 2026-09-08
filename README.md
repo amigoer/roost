@@ -90,8 +90,15 @@ change what one does.
 | Tool | Held? |
 |:--|:--|
 | `Read`, `Grep`, `Glob`, `TodoWrite`, … | Never. Filtered inside the hook, so the common path never pays for a round trip. |
-| `Bash`, `WebFetch`, `mcp__*`, everything else | Held — unless the session runs in `bypassPermissions` or `plan`. |
+| `Bash`, `WebFetch`, `mcp__*`, everything else | Held only where a prompt would really have appeared: a session in `default` mode, or one whose mode nothing on disk records. `auto` — the desktop app's own default — along with `bypassPermissions` and `plan`, answers for itself. |
 | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | Held only in `default` mode. An accept-edits session has answered already. |
+
+The mode is read at the moment of the call rather than taken from the last
+scan: first from the session's own transcript, which records the mode of every
+turn and of every switch made during one, and failing that from the desktop
+app's record. A card for a call that was never going to be prompted is worse
+than no card at all — it is an interruption, and from the outside it is
+indistinguishable from a prompt that was real.
 
 The island is click-through by design, so the buttons are geometry on both
 sides: the card lays them out from the same constants the hit test reads. That

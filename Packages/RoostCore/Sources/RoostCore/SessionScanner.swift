@@ -14,6 +14,12 @@ public actor SessionScanner {
     /// change, so re-reading them on every scan was measurable CPU for nothing.
     private static let desktopRefreshInterval: TimeInterval = 30
 
+    /// Deciding whether to hold a tool call is worth paying that read for: a
+    /// conversation started since the last one is not in it at all, and a mode
+    /// switched a moment ago is the difference between a card that belongs on
+    /// screen and one that interrupts for nothing.
+    private static let desktopDecisionAge: TimeInterval = 2
+
     private var desktop: [String: DesktopSession] = [:]
     private var desktopReadAt: Date = .distantPast
     private var transcriptCache: [String: Cached] = [:]
@@ -24,7 +30,7 @@ public actor SessionScanner {
 
     public func scan(now: Date = Date()) -> [Session] {
         let entries = SessionRegistry.deduplicated(SessionRegistry.liveEntries())
-        refreshDesktopIfStale(now: now)
+        refreshDesktop(now: now, olderThan: Self.desktopRefreshInterval)
         var live = Set<String>()
         var sessions: [Session] = []
 
@@ -48,7 +54,6 @@ public actor SessionScanner {
                 cwd: entry.cwd,
                 entrypoint: entry.entrypoint,
                 model: known?.modelLabel,
-                permissionMode: known?.permissionMode,
                 startedAt: entry.startedAt,
                 state: state,
                 stateSince: stateSince[entry.sessionId] ?? now,
@@ -70,26 +75,45 @@ public actor SessionScanner {
         }
     }
 
-    private func refreshDesktopIfStale(now: Date) {
-        guard now.timeIntervalSince(desktopReadAt) >= Self.desktopRefreshInterval else { return }
+    /// How a session answers permission prompts, asked at the moment a tool
+    /// call is about to be held.
+    ///
+    /// The transcript comes first: it carries the mode of the last turn and of
+    /// any switch made during one, and it is the only record a session started
+    /// in a terminal leaves at all. The desktop store answers for the rest --
+    /// a session whose last turn has scrolled out of the tail, or one opened
+    /// since the last read of it.
+    public func permissionMode(for sessionId: String, now: Date = Date()) -> String? {
+        if let mode = facts(for: sessionId)?.permissionMode { return mode }
+        refreshDesktop(now: now, olderThan: Self.desktopDecisionAge)
+        return desktop[sessionId]?.permissionMode
+    }
+
+    private func refreshDesktop(now: Date, olderThan age: TimeInterval) {
+        guard now.timeIntervalSince(desktopReadAt) >= age else { return }
         desktop = DesktopSessions.byCLISessionId()
         desktopReadAt = now
     }
 
-    /// Parses only when the transcript actually changed. State is still
-    /// re-derived every tick from the cached facts, so a pending tool crossing
-    /// the grace line is noticed without re-reading anything.
+    /// State is re-derived every tick from the cached facts, so a pending tool
+    /// crossing the grace line is noticed without re-reading anything.
     private func reading(for sessionId: String, now: Date) -> TranscriptReader.Reading? {
+        guard let facts = facts(for: sessionId) else { return nil }
+        return TranscriptReader.state(from: facts, now: now)
+    }
+
+    /// Parses only when the transcript actually changed.
+    private func facts(for sessionId: String) -> TranscriptReader.Facts? {
         guard let url = TranscriptReader.transcriptURL(sessionId: sessionId) else { return nil }
         let modifiedAt = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate ?? .distantPast
 
         if let cached = transcriptCache[sessionId], cached.modifiedAt == modifiedAt {
-            return TranscriptReader.state(from: cached.facts, now: now)
+            return cached.facts
         }
 
         guard let facts = TranscriptReader.facts(url: url) else { return nil }
         transcriptCache[sessionId] = Cached(modifiedAt: modifiedAt, facts: facts)
-        return TranscriptReader.state(from: facts, now: now)
+        return facts
     }
 }

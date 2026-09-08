@@ -12,7 +12,12 @@ public final class ApprovalCenter {
     /// Looks up a session's permission mode. A tool that would not have
     /// prompted must not produce a card: an interruption nobody asked for is
     /// worse than a missed chance to approve early.
-    @ObservationIgnored public var permissionMode: ((String) -> String?)?
+    ///
+    /// Asked at the moment of a hold, and allowed to take its time about it:
+    /// a mode read minutes ago describes a session that may have changed it
+    /// since, and being wrong here is what puts a card on screen for a call
+    /// nobody was ever going to be asked about.
+    @ObservationIgnored public var permissionMode: ((String) async -> String?)?
 
     @ObservationIgnored private var waiters: [String: CheckedContinuation<ApprovalReply, Never>] = [:]
 
@@ -21,8 +26,8 @@ public final class ApprovalCenter {
     public var current: ApprovalRequest? { pending.first }
 
     public func handle(_ request: ApprovalRequest) async -> ApprovalReply {
-        guard ApprovalGate.shouldAsk(tool: request.tool,
-                                     permissionMode: permissionMode?(request.sessionId)) else {
+        guard await ApprovalGate.shouldAsk(tool: request.tool,
+                                           permissionMode: permissionMode?(request.sessionId)) else {
             return ApprovalReply(decision: .ask)
         }
         pending.append(request)

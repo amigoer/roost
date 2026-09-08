@@ -19,10 +19,26 @@ final class ApprovalGateTests: XCTestCase {
         XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Write", permissionMode: "plan"))
     }
 
-    /// An unknown mode is the strict case: better a card than a silent run.
-    func testUnknownModeAsks() {
-        XCTAssertTrue(ApprovalGate.shouldAsk(tool: "Write", permissionMode: nil))
+    /// The desktop app's own default answers for itself, so nothing it runs
+    /// is worth holding: the card would be the only prompt the user ever saw.
+    func testAutoHoldsNothing() {
+        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Bash", permissionMode: "auto"))
+        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Write", permissionMode: "auto"))
+        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "mcp__github__create_pr", permissionMode: "auto"))
+    }
+
+    /// Only the modes known to prompt are held.
+    func testOnlyPromptingModesAsk() {
         XCTAssertTrue(ApprovalGate.shouldAsk(tool: "Write", permissionMode: "default"))
+        // No record of the session at all: one started in a terminal, which
+        // prompts unless it was told not to.
+        XCTAssertTrue(ApprovalGate.shouldAsk(tool: "Write", permissionMode: nil))
+    }
+
+    /// A mode named after this was written is likelier to be another loose one
+    /// than a stricter one, and a card nobody needed is the worse mistake.
+    func testAModeNobodyHereKnowsIsLetThrough() {
+        XCTAssertFalse(ApprovalGate.shouldAsk(tool: "Bash", permissionMode: "someFutureMode"))
     }
 }
 

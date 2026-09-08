@@ -44,6 +44,10 @@ public enum TranscriptReader {
         public var lastToolName: String?
         public var lastDetail: String?
         public var lastActivityAt: Date
+        /// How the session answers permission prompts, as of its last turn or
+        /// of the last switch made during one. The only record a session
+        /// started in a terminal leaves anywhere.
+        public var permissionMode: String?
     }
 
     public struct Reading: Sendable {
@@ -99,12 +103,17 @@ public enum TranscriptReader {
         var lastSemanticAt: Date?
         var lastToolName: String?
         var lastDetail: String?
+        var permissionMode: String?
 
         for line in lines {
             guard let data = line.data(using: .utf8),
                   let record = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let type = record["type"] as? String
             else { continue }
+
+            // Carried by each turn, and written on its own line the moment
+            // somebody changes it mid-turn, so the last one seen is current.
+            if let mode = record["permissionMode"] as? String { permissionMode = mode }
 
             // Metadata lines (last-prompt, mode, ai-title, ...) are appended
             // after the semantic ones and mean nothing, so only these two count.
@@ -145,7 +154,8 @@ public enum TranscriptReader {
                      lastStopReason: lastSemanticStop,
                      lastToolName: lastToolName,
                      lastDetail: lastDetail,
-                     lastActivityAt: lastActivity)
+                     lastActivityAt: lastActivity,
+                     permissionMode: permissionMode)
     }
 
     /// Arguments worth showing, in the order a person would want them. Keyed by

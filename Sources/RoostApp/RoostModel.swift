@@ -65,8 +65,11 @@ final class RoostModel {
     /// only while the cursor happens to be on one particular notch.
     var isPinned: Bool { approvals.current != nil }
 
-    func permissionMode(for sessionId: String) -> String? {
-        sessions.first { $0.id == sessionId }?.permissionMode
+    /// Asked when a tool call is about to be held, so it comes off disk rather
+    /// than out of the last scan: a conversation opened seconds ago, or a mode
+    /// switched seconds ago, is exactly when a wrong answer shows a card.
+    func permissionMode(for sessionId: String) async -> String? {
+        await scanner.permissionMode(for: sessionId)
     }
 
     private let scanner = SessionScanner()

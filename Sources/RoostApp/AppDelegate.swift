@@ -17,7 +17,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.startRefreshing()
         model.startCheckingForUpdates()
         model.refreshHookState()
-        model.approvals.permissionMode = { [weak model] in model?.permissionMode(for: $0) }
+        model.approvals.permissionMode = { [weak model] sessionId in
+            await model?.permissionMode(for: sessionId) ?? nil
+        }
         approvals.start()
 
         // No menu bar item: another icon up there is exactly the clutter this

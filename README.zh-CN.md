@@ -84,8 +84,13 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 | 工具 | 会被按住吗 |
 |:--|:--|
 | `Read`、`Grep`、`Glob`、`TodoWrite` 等 | 从不。在 hook 里就滤掉了，常规路径不付任何跨进程代价。 |
-| `Bash`、`WebFetch`、`mcp__*` 及其余 | 会——除非会话跑在 `bypassPermissions` 或 `plan` 模式下。 |
+| `Bash`、`WebFetch`、`mcp__*` 及其余 | 只在真的会弹确认的时候按住：`default` 模式的会话，或者磁盘上根本查不到模式的会话。`auto`（桌面端自己的默认模式）、`bypassPermissions`、`plan` 自己就能答。 |
 | `Write`、`Edit`、`MultiEdit`、`NotebookEdit` | 只在 `default` 模式下按住。accept-edits 的会话早就答过了。 |
+
+模式是在这次调用发生的那一刻读的，不是用上一次扫描的结果：先读会话自己的 transcript
+（每一轮的模式、以及中途每一次切换都记在里面），读不到再退回桌面端的会话记录。
+一次本来就不会弹确认的调用弹出卡片，比没有卡片更糟——那是一次打扰，而且从外面看
+跟真的权限确认一模一样。
 
 岛本身是穿透的，所以按钮在两边都是几何：卡片按照命中测试读的同一组常量排版。
 这个映射[有测试](Packages/RoostCore/Tests/RoostCoreTests/ApprovalTests.swift)保着，

@@ -5,8 +5,9 @@ public struct DesktopSession: Sendable, Hashable {
     public let title: String?
     /// Raw model id, e.g. `claude-opus-4-6`.
     public let model: String?
-    /// `default`, `acceptEdits`, `plan`, `bypassPermissions`. Decides whether a
-    /// tool would have raised a prompt at all.
+    /// `auto` -- the desktop app's own default -- or `default`, `acceptEdits`,
+    /// `plan`, `bypassPermissions`. Decides whether a tool would have raised a
+    /// prompt at all.
     public let permissionMode: String?
 
     public init(title: String?, model: String?, permissionMode: String?) {

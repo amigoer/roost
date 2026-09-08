@@ -63,7 +63,7 @@ one more icon up there is the clutter this app exists to remove.
 
 | Part | Says |
 |:--|:--|
-| Agent mark | Whose session it is: Claude Code's eight-ray burst, or Codex's ring. Shape carries it, because the mascot beside it is already spending colour on the state. |
+| Agent mark | Whose session it is: Claude Code's terminal creature, or Codex's ring. Shape carries it, because the mascot beside it is already spending colour on the state. The Claude one is its published mark cell for cell — that mark is drawn on a 1.5-unit step inside a 24-unit box, so it lands on this app's grid exactly rather than having to be redrawn to look like it. |
 | `project · title` | Which repo, then which conversation. The repo answers "do I care" faster. |
 | Second line | What it is doing *right now*: the tool, then the argument a person would recognise — the command, the file, the pattern — pulled straight out of the transcript. Blocked rows say why instead. |
 | Model | What it is running, from the desktop app's own record of the session. |

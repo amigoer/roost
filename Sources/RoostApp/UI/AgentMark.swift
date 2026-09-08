@@ -7,24 +7,27 @@ import RoostCore
 /// a mascot that is already spending hue on the session's state, and two
 /// things competing on colour in one row is one too many.
 extension AgentKind {
-    /// Claude Code is an eight-ray burst, Codex a ring around a point. Both on
-    /// an 11x11 grid, and both sparse on purpose: at 16pt the dotted diagonals
-    /// still read as rays, while anything thicker turns into a blob.
+    /// Claude Code's terminal creature, and Codex a ring around a point.
+    ///
+    /// The Claude one is not an approximation. Its published mark is drawn with
+    /// axis-aligned edges on a 1.5-unit step inside a 24-unit box, so dividing
+    /// every coordinate by that step lands on whole cells: this is that mark at
+    /// 16x10, exactly, rather than something redrawn to look like it. Codex has
+    /// a circle in it and gets no such luck, so it stays hand-fitted at 11x11.
     var grid: [String] {
         switch self {
         case .claudeCode:
             [
-                ".....X.....",
-                ".X...X...X.",
-                "..X..X..X..",
-                "...X.X.X...",
-                "....XXX....",
-                "XXXXXXXXXXX",
-                "....XXX....",
-                "...X.X.X...",
-                "..X..X..X..",
-                ".X...X...X.",
-                ".....X.....",
+                "..XXXXXXXXXXXX..",
+                "..XXXXXXXXXXXX..",
+                "..XX.XXXXXX.XX..",
+                "..XX.XXXXXX.XX..",
+                "XXXXXXXXXXXXXXXX",
+                "XXXXXXXXXXXXXXXX",
+                "..XXXXXXXXXXXX..",
+                "..XXXXXXXXXXXX..",
+                "...X.X....X.X...",
+                "...X.X....X.X...",
             ]
         case .codex:
             [
@@ -56,11 +59,18 @@ struct AgentMarkView: View {
     var kind: AgentKind = .claudeCode
     var cell: CGFloat = 1.5
 
+    /// One slot in cells, whatever is standing in it, so a row's title starts
+    /// in the same place whichever agent it belongs to. Sized to the widest
+    /// grid and the tallest, and the art is centred rather than stretched: a
+    /// mark redrawn to fill a box is no longer the mark.
+    static let slot = CGSize(width: 16, height: 11)
+
     var body: some View {
         PixelArt(grid: kind.grid, cell: cell)
             .fill(kind.colour)
             .frame(width: CGFloat(kind.grid.first?.count ?? 0) * cell,
                    height: CGFloat(kind.grid.count) * cell)
+            .frame(width: Self.slot.width * cell, height: Self.slot.height * cell)
     }
 }
 

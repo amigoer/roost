@@ -251,48 +251,24 @@ final class MenuHitTests: XCTestCase {
     }
 }
 
-final class SessionLinkTests: XCTestCase {
-    /// The id that works is the CLI session id, not the desktop app's own
-    /// `local_` one: handing the resume route a local id gets "missing or
-    /// invalid session" and nothing else.
-    func testResumeCarriesTheCliSessionId() throws {
-        let url = try XCTUnwrap(SessionLink.resume(cliSessionId: "b2d3426a-ead4-4837-b918-e6cb3ce5446b"))
-        XCTAssertEqual(url.absoluteString,
-                       "claude://resume?session=b2d3426a-ead4-4837-b918-e6cb3ce5446b")
+final class RegistryDeduplicationTests: XCTestCase {
+    private func entry(_ id: String, pid: pid_t, startedAt: Date) -> RegistryEntry {
+        RegistryEntry(pid: pid, sessionId: id, cwd: "/x/perch", name: nil,
+                      startedAt: startedAt, entrypoint: "claude-desktop")
     }
 
-    func testNoIdIsNoLink() {
-        XCTAssertNil(SessionLink.resume(cliSessionId: ""))
-    }
-}
+    /// Two processes against one transcript is still one conversation, and the
+    /// one that has been running is the one to keep.
+    func testOneRowPerSessionRegardlessOfProcesses() {
+        let old = Date(timeIntervalSince1970: 1_000)
+        let new = Date(timeIntervalSince1970: 2_000)
+        let entries = [entry("a", pid: 10477, startedAt: new),
+                       entry("a", pid: 58497, startedAt: old),
+                       entry("b", pid: 99648, startedAt: new)]
 
-final class ResumeSafetyTests: XCTestCase {
-    /// A terminal session is not in the desktop app at all, so importing it is
-    /// the whole point rather than a duplicate.
-    func testATerminalSessionIsSafeToResume() {
-        XCTAssertTrue(SessionLink.resumeIsSafe(entrypoint: "cli", knownToDesktop: false,
-                                               hasImportedCopy: false))
-    }
+        let result = SessionRegistry.deduplicated(entries)
 
-    /// The app dedupes on `local_<cli id>`, so the second resume finds the
-    /// first one's import and adds nothing.
-    func testAnAlreadyImportedSessionIsSafeToResume() {
-        XCTAssertTrue(SessionLink.resumeIsSafe(entrypoint: "claude-desktop", knownToDesktop: true,
-                                               hasImportedCopy: true))
-    }
-
-    /// The app started this one under an id of its own; the import would land
-    /// beside it.
-    func testASessionTheAppStartedIsNotSafeToResume() {
-        XCTAssertFalse(SessionLink.resumeIsSafe(entrypoint: "claude-desktop", knownToDesktop: true,
-                                                hasImportedCopy: false))
-    }
-
-    /// The case that shipped broken: a conversation started seconds ago is not
-    /// in the last scan of the store, so the scan says "unknown" and the
-    /// entrypoint is the only thing that knows better.
-    func testABrandNewDesktopSessionIsNotSafeToResume() {
-        XCTAssertFalse(SessionLink.resumeIsSafe(entrypoint: "claude-desktop", knownToDesktop: false,
-                                                hasImportedCopy: false))
+        XCTAssertEqual(result.map(\.sessionId), ["a", "b"])
+        XCTAssertEqual(result.first?.pid, 58497)
     }
 }

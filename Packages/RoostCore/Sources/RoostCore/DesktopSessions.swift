@@ -9,20 +9,10 @@ public struct DesktopSession: Sendable, Hashable {
     /// tool would have raised a prompt at all.
     public let permissionMode: String?
 
-    /// Whether the app already holds a copy imported from a CLI transcript: a
-    /// record whose own id is `local_<cli id>`.
-    ///
-    /// It dedupes imports on that derived id alone, never on which CLI session
-    /// a record points at, so resuming a session it started itself lands a
-    /// second entry beside the original. Resuming one it has already imported
-    /// costs nothing, because the derived id is what it finds.
-    public let hasImportedCopy: Bool
-
-    public init(title: String?, model: String?, permissionMode: String?, hasImportedCopy: Bool) {
+    public init(title: String?, model: String?, permissionMode: String?) {
         self.title = title
         self.model = model
         self.permissionMode = permissionMode
-        self.hasImportedCopy = hasImportedCopy
     }
 
     /// Short enough for a row: "claude-sonnet-4-5-20250929" -> "Sonnet 4.5".
@@ -41,26 +31,12 @@ public struct DesktopSession: Sendable, Hashable {
 /// What the desktop app records about the sessions it started.
 ///
 /// The registry's derived `name` (e.g. "mq-studio-33") collides across sessions
-/// in the same project, and nothing else knows which model a session is on or
-/// whether opening it would duplicate it, so it is worth the walk.
+/// in the same project, and nothing else knows which model a session is on, so
+/// it is worth the walk.
 public enum DesktopSessions {
     public static func defaultDirectory() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appending(path: "Library/Application Support/Claude/claude-code-sessions")
-    }
-
-    /// Whether the app already holds an import of this session, asked fresh.
-    ///
-    /// The copy's file name is derived from the CLI id, so this needs no
-    /// parsing and is cheap enough to ask at the moment of a click -- which is
-    /// the only moment whose answer is not already out of date.
-    public static func hasImportedCopy(cliSessionId: String,
-                                       in directory: URL = defaultDirectory()) -> Bool {
-        guard let walker = FileManager.default.enumerator(
-            at: directory, includingPropertiesForKeys: nil) else { return false }
-        let name = "local_\(cliSessionId).json"
-        for case let url as URL in walker where url.lastPathComponent == name { return true }
-        return false
     }
 
     /// Keyed by CLI session id: the store keys by its own id and carries
@@ -82,21 +58,16 @@ public enum DesktopSessions {
                   let id = json["sessionId"] as? String
             else { continue }
 
+            // A conversation can have two records: the one the app started
+            // and a copy imported from the transcript. The app's own is the
+            // one that describes it.
             let isCopy = id == "local_\(cliId)"
-            let known = result[cliId]
-            let hasCopy = isCopy || known?.hasImportedCopy == true
+            if isCopy, result[cliId] != nil { continue }
 
-            if isCopy, let known {
-                result[cliId] = DesktopSession(title: known.title, model: known.model,
-                                               permissionMode: known.permissionMode,
-                                               hasImportedCopy: true)
-                continue
-            }
             let title = (json["title"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             result[cliId] = DesktopSession(title: title,
                                            model: json["model"] as? String,
-                                           permissionMode: json["permissionMode"] as? String,
-                                           hasImportedCopy: hasCopy)
+                                           permissionMode: json["permissionMode"] as? String)
         }
         return result
     }

@@ -153,18 +153,14 @@ The code enforces these, and the comments say so:
 ## Interaction
 
 - **Hover** the notch to expand the list (up to 6 rows).
-- **Click a row** to open that conversation, via `claude://resume?session=<cli
-  id>` — the one route that focuses a session from outside. It fires only when
-  it cannot leave a duplicate: for a session the desktop app has never seen,
-  where importing *is* the point, and for one it has already imported, where the
-  import is found rather than made.
-- A session the desktop app started itself is the exception. It holds that one
-  under an id of its own, dedupes imports on `local_<cli id>` alone, and so
-  files the import beside the original instead of on it. The two routes that
-  take the app's own id — `code/continue` and `code/needs-input` — sit behind an
-  account gate and quietly do nothing. Those clicks bring the app forward and
-  stop there, which is a poor answer, but a second copy of a conversation is a
-  worse one.
+- **Click a row** to bring the desktop app forward. It cannot yet land on the
+  conversation itself, and that is the honest state of things rather than a
+  design decision. Of the three routes in, two — `code/continue` and
+  `code/needs-input` — take the app's own `local_` id and sit behind an account
+  gate that logs `code entry deep link gated off` and does nothing else. The
+  third, `claude://resume`, reopens a *finished* conversation: pointed at a
+  running one it starts a second process against the same transcript, and every
+  session listed here is running.
 - **Click Deny or Allow** on a held tool call. The island stays open on its own
   while one is waiting, so answering never depends on the cursor being there.
 - **Click the gear** in the panel's top-right for settings. Right-clicking the

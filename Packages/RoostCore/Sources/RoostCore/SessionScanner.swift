@@ -23,7 +23,7 @@ public actor SessionScanner {
     public init() {}
 
     public func scan(now: Date = Date()) -> [Session] {
-        let entries = SessionRegistry.liveEntries()
+        let entries = SessionRegistry.deduplicated(SessionRegistry.liveEntries())
         refreshDesktopIfStale(now: now)
         var live = Set<String>()
         var sessions: [Session] = []
@@ -49,7 +49,6 @@ public actor SessionScanner {
                 entrypoint: entry.entrypoint,
                 model: known?.modelLabel,
                 permissionMode: known?.permissionMode,
-                knownToDesktop: known != nil,
                 startedAt: entry.startedAt,
                 state: state,
                 stateSince: stateSince[entry.sessionId] ?? now,

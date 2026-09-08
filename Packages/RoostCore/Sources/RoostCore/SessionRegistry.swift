@@ -25,6 +25,18 @@ public enum SessionRegistry {
         FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude/sessions")
     }
 
+    /// One entry per session id, oldest first.
+    ///
+    /// Reopening a session that is still running leaves a second process
+    /// against the same transcript, and both write a registry file. That is one
+    /// conversation, however many processes are holding it.
+    public static func deduplicated(_ entries: [RegistryEntry]) -> [RegistryEntry] {
+        var seen = Set<String>()
+        return entries
+            .sorted { $0.startedAt < $1.startedAt }
+            .filter { seen.insert($0.sessionId).inserted }
+    }
+
     public static func liveEntries(in directory: URL = defaultDirectory()) -> [RegistryEntry] {
         let files = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: nil)) ?? []

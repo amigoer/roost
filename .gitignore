@@ -13,3 +13,7 @@ xcuserdata/
 # SwiftPM
 .swiftpm/
 Package.resolved
+
+# Release artifacts
+.release/
+*.dmg

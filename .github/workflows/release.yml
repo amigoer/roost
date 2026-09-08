@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to package, without the leading v"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # The tag is the version. Nothing in the repo has to be bumped to match:
+      # the build takes MARKETING_VERSION from here.
+      - name: Resolve version
+        id: version
+        run: |
+          value="${{ inputs.version }}"
+          [ -n "$value" ] || value="${GITHUB_REF_NAME#v}"
+          echo "value=$value" >> "$GITHUB_OUTPUT"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build the DMG
+        run: scripts/package-dmg.sh "${{ steps.version.outputs.value }}"
+
+      # Draft on purpose: publishing is a decision, not a side effect of a push.
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          tag="v$VERSION"
+          dmg="Roost-$VERSION.dmg"
+          notes=$(printf '%s\n' \
+            "Drag Roost into Applications." \
+            "" \
+            "The build is ad-hoc signed rather than notarised, so macOS refuses the first launch. Either right-click Roost.app and choose Open, or clear the quarantine flag:" \
+            "" \
+            '```' \
+            "xattr -dr com.apple.quarantine /Applications/Roost.app" \
+            '```' \
+            "" \
+            "Roost is an accessory app: no Dock icon, no window, no menu bar item. Right-click the notch for its menu." \
+            "" \
+            "Requires macOS 14 or later.")
+
+          # A rerun updates the draft rather than failing on it.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$dmg" --clobber
+          else
+            gh release create "$tag" --draft --title "Roost $VERSION" --notes "$notes" "$dmg"
+          fi

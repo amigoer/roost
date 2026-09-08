@@ -366,14 +366,30 @@ final class UsageStoreTests: XCTestCase {
         super.tearDown()
     }
 
+    /// Dates as they actually arrive: `Date()` and a reply carrying
+    /// microseconds. Whole seconds here would have passed while the real thing
+    /// came back unequal to itself.
     func testAReadingSurvivesTheRoundTrip() throws {
-        let usage = Usage(fiveHour: UsageWindow(used: 0.42, resetsAt: Date(timeIntervalSince1970: 1)),
+        let usage = Usage(fiveHour: UsageWindow(used: 0.42,
+                                                resetsAt: Date(timeIntervalSince1970: 1_789_052_399.816725)),
                           sevenDay: nil,
                           scoped: [ScopedWindow(label: "Fable", window: UsageWindow(used: 0.5))],
                           source: .api,
-                          reportedAt: Date(timeIntervalSince1970: 1_700_000_000))
+                          reportedAt: Date())
         UsageStore.save(usage, to: url)
         XCTAssertEqual(UsageStore.load(from: url), usage)
+    }
+
+    /// The same wire the helpers speak, and the same trap.
+    func testAReadingSurvivesTheHookWire() throws {
+        let usage = Usage(fiveHour: UsageWindow(used: 0.42,
+                                                resetsAt: Date(timeIntervalSince1970: 1_789_052_399.9)),
+                          sevenDay: nil, reportedAt: Date())
+        let line = try JSONEncoder.wire.encode(HookMessage.usage(usage))
+        guard case .usage(let decoded) = try XCTUnwrap(HookMessage.decode(line)) else {
+            return XCTFail("expected a usage report")
+        }
+        XCTAssertEqual(decoded, usage)
     }
 
     func testNothingOnDiskIsNoReading() {

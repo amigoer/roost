@@ -1,5 +1,20 @@
 import Foundation
 
+/// Timestamps here are kept to the second.
+///
+/// The wire between the helpers and the app encodes dates as ISO 8601, which
+/// writes no fraction, so a reading that held one stopped being equal to itself
+/// the moment it went to disk and came back -- and the reply from Anthropic
+/// carries microseconds. Nothing downstream wants finer than a second: this is
+/// a countdown in minutes and a freshness window in quarter hours.
+enum WholeSecond {
+    static func of(_ date: Date) -> Date {
+        Date(timeIntervalSince1970: date.timeIntervalSince1970.rounded(.down))
+    }
+
+    static func of(_ date: Date?) -> Date? { date.map(of) }
+}
+
 /// One quota window.
 public struct UsageWindow: Codable, Sendable, Hashable {
     /// How much of the window is spent, 0-1.
@@ -12,7 +27,7 @@ public struct UsageWindow: Codable, Sendable, Hashable {
 
     public init(used: Double, resetsAt: Date? = nil, lockedReason: String? = nil) {
         self.used = min(max(used, 0), 1)
-        self.resetsAt = resetsAt
+        self.resetsAt = WholeSecond.of(resetsAt)
         self.lockedReason = lockedReason
     }
 
@@ -80,7 +95,7 @@ public struct Usage: Codable, Sendable, Hashable {
         self.sevenDay = sevenDay
         self.scoped = scoped
         self.source = source
-        self.reportedAt = reportedAt
+        self.reportedAt = WholeSecond.of(reportedAt)
     }
 
     /// Defaults for everything a helper from an older bundle does not send.

@@ -29,7 +29,7 @@ final class SettingsWindowController {
     }
 
     private func make() -> NSWindow {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 560),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 432),
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
@@ -81,20 +81,6 @@ struct SettingsView: View {
             }
 
             Section {
-                Picker("Force a state", selection: $model.presetName) {
-                    ForEach(RoostModel.presets, id: \.name) { preset in
-                        Text(preset.name).tag(preset.name)
-                    }
-                }
-            } header: {
-                Text("Preview")
-            } footer: {
-                Text("Holds the island in one state so the design can be judged without waiting for a session to produce it.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section {
                 HStack {
                     Spacer()
                     Button("Quit Roost") { NSApplication.shared.terminate(nil) }
@@ -102,6 +88,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460, height: 560)
+        .frame(width: 460, height: 432)
     }
 }

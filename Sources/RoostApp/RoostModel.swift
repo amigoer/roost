@@ -48,16 +48,6 @@ final class RoostModel {
 
 
 
-    /// Set by the debug menu to force a state while detection is being tuned.
-    var previewOverride: PreviewOverride?
-
-    struct PreviewOverride: Equatable {
-        var level: SignalLevel
-        var tier: EscalationTier
-        var blockedCount: Int
-        var face: MascotFace
-    }
-
     /// A held tool call keeps every island open: it is not something to answer
     /// only while the cursor happens to be on one particular notch.
     var isPinned: Bool { approvals.current != nil }
@@ -71,14 +61,12 @@ final class RoostModel {
     private var updateTask: Task<Void, Never>?
 
     var level: SignalLevel {
-        if let previewOverride { return previewOverride.level }
-        return SignalLevel.aggregate(sessions.map(\.state))
+        SignalLevel.aggregate(sessions.map(\.state))
     }
 
     /// The face the collapsed island and the menu bar item wear: the one
     /// belonging to the loudest session.
     var face: MascotFace {
-        if let previewOverride { return previewOverride.face }
         // Something is held at the gate: that is the loudest fact there is.
         if approvals.current != nil { return .waiting }
         switch level {
@@ -92,7 +80,6 @@ final class RoostModel {
     }
 
     var tier: EscalationTier {
-        if let previewOverride { return previewOverride.tier }
         let longest = blockedSessions.map(\.blockedFor).max() ?? 0
         return EscalationTier(blockedFor: longest)
     }
@@ -114,9 +101,7 @@ final class RoostModel {
         sessions.filter { if case .blocked = $0.state { true } else { false } }
     }
 
-    var blockedCount: Int {
-        previewOverride?.blockedCount ?? blockedSessions.count
-    }
+    var blockedCount: Int { blockedSessions.count }
 
     func startCheckingForUpdates() {
         updateTask?.cancel()
@@ -149,31 +134,5 @@ final class RoostModel {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
-    }
-}
-
-extension RoostModel {
-    /// Forced states, so the visual design can be judged before the detection
-    /// layer is trusted to produce each one on demand.
-    struct Preset {
-        let name: String
-        let override: PreviewOverride?
-    }
-
-    static let presets: [Preset] = [
-        Preset(name: "Live detection", override: nil),
-        Preset(name: "Dormant", override: .init(level: .dormant, tier: .calm, blockedCount: 0, face: .idle)),
-        Preset(name: "Running", override: .init(level: .running, tier: .calm, blockedCount: 0, face: .running)),
-        Preset(name: "Done", override: .init(level: .done, tier: .calm, blockedCount: 0, face: .done)),
-        Preset(name: "Waiting", override: .init(level: .blocked, tier: .calm, blockedCount: 1, face: .waiting)),
-        Preset(name: "Waiting, three of them", override: .init(level: .blocked, tier: .calm, blockedCount: 3, face: .waiting)),
-        Preset(name: "Waiting, escalated", override: .init(level: .blocked, tier: .elevated, blockedCount: 1, face: .waiting)),
-        Preset(name: "Stalled", override: .init(level: .blocked, tier: .calm, blockedCount: 1, face: .stalled)),
-        Preset(name: "Error", override: .init(level: .blocked, tier: .calm, blockedCount: 1, face: .error)),
-    ]
-
-    var presetName: String {
-        get { Self.presets.first { $0.override == previewOverride }?.name ?? Self.presets[0].name }
-        set { previewOverride = Self.presets.first { $0.name == newValue }?.override }
     }
 }

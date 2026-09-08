@@ -153,8 +153,11 @@ Roost 唯一发出的请求是每 6 小时向 GitHub 的 releases API 查一次�
 
 <img src="docs/settings.png" width="460" alt="设置窗口">
 
-所有有得选的东西都在这里：更新检查、批准 hook、预览状态。**退出也在这里**——
-accessory 应用没有 Dock 图标可以退。
+真正需要你做选择的两件事在这里：要不要检查更新、要不要在岛上回答权限确认。
+**退出也在这里**——accessory 应用没有 Dock 图标可以退。
+
+这里没有任何东西可以设置岛的状态。状态是从会话实际在做什么推导出来的，
+一个能覆盖它的开关只会撒谎。
 
 ## 安装
 
@@ -201,11 +204,6 @@ Packages/RoostCore/
 ```
 
 `RoostCore` 刻意不依赖 AppKit，这样检测和几何计算不需要屏幕就能做单元测试。
-
-## 开发
-
-设置里的 *Preview* 可以强制切到任意状态——dormant、running、done、waiting、
-stalled、error 以及升级后的变体——这样不必等真实会话出现就能判断视觉效果。
 
 ## 项目状态
 

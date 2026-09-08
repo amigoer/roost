@@ -172,9 +172,12 @@ The code enforces these, and the comments say so:
 
 <img src="docs/settings.png" width="460" alt="The settings window">
 
-Everything with a choice in it lives here: the update check, the approval hook,
-and the preview states. It is also the way out — an accessory app has no Dock
-icon to quit from.
+The two things worth choosing live here: whether to check for updates, and
+whether to answer permission prompts from the island. It is also the way out —
+an accessory app has no Dock icon to quit from.
+
+Nothing here sets the island's state. State is derived from what the sessions
+are actually doing, and a switch that overrode it would only ever be lying.
 
 ## Install
 
@@ -222,12 +225,6 @@ Packages/RoostCore/
 
 `RoostCore` is deliberately free of AppKit so the detection and geometry can be
 unit tested without a screen.
-
-## Development
-
-Settings has a *Preview* picker that forces any state — dormant, running, done,
-waiting, stalled, error, and the escalated variants — so the visual design can
-be judged without waiting for a real session to produce it.
 
 ## Status
 

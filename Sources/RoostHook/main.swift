@@ -14,11 +14,16 @@ guard let json = try? JSONSerialization.jsonObject(with: payload) as? [String: A
       let tool = json["tool_name"] as? String,
       ApprovalGate.mayPrompt(tool: tool) else { exit(0) }
 
+// `agent_type` alone also describes a whole session started with --agent, so
+// the id is what says this particular call came from inside a sub-agent.
+let agent = json["agent_id"] == nil ? nil : json["agent_type"] as? String
+
 let request = ApprovalRequest(
     sessionId: json["session_id"] as? String ?? "",
     cwd: json["cwd"] as? String ?? FileManager.default.currentDirectoryPath,
     tool: tool,
-    detail: ApprovalGate.detail(tool: tool, input: json["tool_input"] as? [String: Any]))
+    detail: ApprovalGate.detail(tool: tool, input: json["tool_input"] as? [String: Any]),
+    agent: agent)
 
 guard let reply = ApprovalClient.ask(request), reply.decision != .ask else { exit(0) }
 

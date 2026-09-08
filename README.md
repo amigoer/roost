@@ -100,6 +100,12 @@ app's record. A card for a call that was never going to be prompted is worse
 than no card at all — it is an interruption, and from the outside it is
 indistinguishable from a prompt that was real.
 
+While a call is held, the row for that session says so instead of reading as
+busy: **needs permission: Bash**, or **Explore needs input** when the call came
+from a sub-agent rather than the main thread. Claude Code writes nothing to the
+transcript when it prompts, so the hook is the only thing that can know, and the
+row and the fleet headline would otherwise both count the session as running.
+
 The island is click-through by design, so the buttons are geometry on both
 sides: the card lays them out from the same constants the hit test reads. That
 mapping is [tested](Packages/RoostCore/Tests/RoostCoreTests/ApprovalTests.swift),

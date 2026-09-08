@@ -32,6 +32,17 @@ public struct Session: Sendable, Identifiable, Hashable {
         URL(fileURLWithPath: cwd).lastPathComponent
     }
 
+    /// The order rows are listed in: loudest first, then newest. Shared, so a
+    /// session the app itself knows is blocked sorts with the rest.
+    public static func ordered(_ sessions: [Session]) -> [Session] {
+        sessions.sorted { lhs, rhs in
+            if lhs.state.signalLevel != rhs.state.signalLevel {
+                return lhs.state.signalLevel > rhs.state.signalLevel
+            }
+            return lhs.startedAt > rhs.startedAt
+        }
+    }
+
     public var blockedFor: TimeInterval {
         guard case .blocked = state else { return 0 }
         return Date().timeIntervalSince(stateSince)

@@ -67,12 +67,7 @@ public actor SessionScanner {
         stateSince = stateSince.filter { live.contains($0.key) }
         lastStates = lastStates.filter { live.contains($0.key) }
 
-        return sessions.sorted { lhs, rhs in
-            if lhs.state.signalLevel != rhs.state.signalLevel {
-                return lhs.state.signalLevel > rhs.state.signalLevel
-            }
-            return lhs.startedAt > rhs.startedAt
-        }
+        return Session.ordered(sessions)
     }
 
     /// How a session answers permission prompts, asked at the moment a tool

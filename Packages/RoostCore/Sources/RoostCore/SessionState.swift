@@ -2,13 +2,16 @@ import Foundation
 
 /// Why a session cannot make progress without the user.
 public enum BlockReason: Sendable, Hashable {
-    /// Claude Code raised a permission prompt for a tool.
+    /// A tool call of this session's is held at the gate, waiting for Deny or
+    /// Allow. Known only to the app doing the holding: Claude Code writes
+    /// nothing at the moment it prompts.
     case permissionPrompt(tool: String?)
     /// A dangling AskUserQuestion: by definition waiting on a human.
     case question
     /// A dangling ExitPlanMode: waiting for plan approval.
     case planApproval
-    /// A named sub-agent reported it needs input.
+    /// The held call came from a named sub-agent rather than from the
+    /// session's main thread, so the row names the agent instead of the tool.
     case agentNeedsInput(label: String?)
     /// A tool call has been outstanding past the grace period.
     case stalledTool(name: String)

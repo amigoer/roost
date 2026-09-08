@@ -42,6 +42,64 @@ final class ApprovalGateTests: XCTestCase {
     }
 }
 
+final class HeldCallTests: XCTestCase {
+    private func session(id: String = "s", startedAt: Date = Date(),
+                         state: SessionState = .running) -> Session {
+        Session(id: id, pid: 1, name: "perch-9b", cwd: "/x/roost", entrypoint: "claude-desktop",
+                startedAt: startedAt, state: state, stateSince: startedAt,
+                activity: "Bash", detail: "swift build", lastActivityAt: startedAt)
+    }
+
+    private func request(agent: String? = nil, receivedAt: Date = Date()) -> ApprovalRequest {
+        ApprovalRequest(sessionId: "s", cwd: "/x/roost", tool: "Bash",
+                        detail: "du -sh ~/.ollama", agent: agent, receivedAt: receivedAt)
+    }
+
+    func testACallFromTheMainThreadIsAPermissionPrompt() {
+        XCTAssertEqual(request().blockReason, .permissionPrompt(tool: "Bash"))
+    }
+
+    /// The hook is the only thing that knows a sub-agent made the call, and
+    /// naming it is what sends you to the right part of the conversation.
+    func testACallFromASubAgentNamesTheAgent() {
+        XCTAssertEqual(request(agent: "Explore").blockReason, .agentNeedsInput(label: "Explore"))
+    }
+
+    /// The transcript still reads as a tool in flight while the card is up, so
+    /// without this the row says "running Bash" under a card asking whether
+    /// that Bash may run.
+    func testAHeldSessionReadsAsBlocked() {
+        let held = session().held(by: request())
+        XCTAssertEqual(held.state, .blocked(.permissionPrompt(tool: "Bash")))
+        XCTAssertEqual(held.detail, "du -sh ~/.ollama")
+    }
+
+    /// Elapsed counts from the card, not from whenever the tool call started.
+    func testItCountsFromTheCard() {
+        let card = request(receivedAt: Date().addingTimeInterval(-30))
+        let held = session(startedAt: Date().addingTimeInterval(-600)).held(by: card)
+        XCTAssertEqual(held.stateSince, card.receivedAt)
+        XCTAssertEqual(held.blockedFor, 30, accuracy: 1)
+    }
+
+    /// A session waiting on a card is the loudest thing listed, and sorts like
+    /// it even though the scan that produced it saw only a running tool.
+    func testAHeldSessionSortsToTheTop() {
+        let newer = session(id: "newer", startedAt: Date())
+        let held = session(id: "s", startedAt: Date().addingTimeInterval(-600)).held(by: request())
+        XCTAssertEqual(Session.ordered([newer, held]).map(\.id), ["s", "newer"])
+    }
+
+    /// Hook and app ship in one bundle, but a payload written by an older hook
+    /// must not fail to decode: the field it lacks only means "not an agent".
+    func testAPayloadWithoutAnAgentStillDecodes() throws {
+        let json = #"{"id":"1","sessionId":"s","cwd":"/x/roost","tool":"Bash","receivedAt":0}"#
+        let decoded = try JSONDecoder().decode(ApprovalRequest.self, from: Data(json.utf8))
+        XCTAssertNil(decoded.agent)
+        XCTAssertEqual(decoded.blockReason, .permissionPrompt(tool: "Bash"))
+    }
+}
+
 final class ApprovalClientTests: XCTestCase {
     /// The property everything else rests on: with nothing listening, the hook
     /// gets no answer and the session prompts the way it always did.

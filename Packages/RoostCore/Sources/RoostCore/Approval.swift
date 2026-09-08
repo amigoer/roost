@@ -9,18 +9,48 @@ public struct ApprovalRequest: Codable, Sendable, Identifiable, Hashable {
     public let tool: String
     /// The argument worth reading before deciding: the command, the file, the url.
     public let detail: String?
+    /// The sub-agent the call came from, by type name, when it did not come
+    /// from the session's main thread.
+    public let agent: String?
     public let receivedAt: Date
 
     public var projectName: String { URL(fileURLWithPath: cwd).lastPathComponent }
 
+    /// Why the session behind this call cannot move. Which of the two it is
+    /// depends on who made the call, because "Explore needs input" and "needs
+    /// permission: Bash" send you to different places in the conversation.
+    public var blockReason: BlockReason {
+        if let agent { return .agentNeedsInput(label: agent) }
+        return .permissionPrompt(tool: tool)
+    }
+
     public init(id: String = UUID().uuidString, sessionId: String, cwd: String,
-                tool: String, detail: String?, receivedAt: Date = Date()) {
+                tool: String, detail: String?, agent: String? = nil,
+                receivedAt: Date = Date()) {
         self.id = id
         self.sessionId = sessionId
         self.cwd = cwd
         self.tool = tool
         self.detail = detail
+        self.agent = agent
         self.receivedAt = receivedAt
+    }
+}
+
+extension Session {
+    /// This session with the call it has waiting at the gate.
+    ///
+    /// Claude Code writes nothing at the moment a prompt appears, so the
+    /// transcript still reads as a tool in flight. Without this the row says
+    /// "running Bash" while a card above it asks whether that Bash may run,
+    /// and the fleet headline counts the session as running rather than
+    /// waiting -- which is the one thing the island exists to say.
+    public func held(by request: ApprovalRequest) -> Session {
+        var session = self
+        session.state = .blocked(request.blockReason)
+        session.stateSince = request.receivedAt
+        session.detail = request.detail
+        return session
     }
 }
 

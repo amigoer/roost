@@ -4,9 +4,23 @@ import RoostCore
 @MainActor
 @Observable
 final class RoostModel {
-    var sessions: [Session] = []
+    /// What the last scan read off disk.
+    private(set) var scanned: [Session] = []
     /// Tool calls held by the hook, waiting for an answer.
     let approvals = ApprovalCenter()
+
+    /// The sessions as the island shows them: what the scan read, plus the one
+    /// fact only this process has -- a call of its own held at the gate. A
+    /// session waiting on a card is waiting on you, and has to say so and sort
+    /// like it.
+    var sessions: [Session] {
+        guard !approvals.pending.isEmpty else { return scanned }
+        return Session.ordered(scanned.map { session in
+            guard let held = approvals.pending.first(where: { $0.sessionId == session.id })
+            else { return session }
+            return session.held(by: held)
+        })
+    }
 
     /// A newer published build, once one has been seen.
     var update: ReleaseInfo?
@@ -142,8 +156,7 @@ final class RoostModel {
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                let scanned = await self.scanner.scan()
-                self.sessions = scanned
+                self.scanned = await self.scanner.scan()
                 self.approvals.expireStale()
                 // A stalled tool crosses the grace line without anything being
                 // written, so state can change with no file event to react to.

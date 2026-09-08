@@ -13,6 +13,18 @@ import Foundation
 /// "code entry deep link gated off" and does nothing else. Sending those is how
 /// a click used to end up merely raising the app.
 public enum SessionLink {
+    /// Whether opening this session would leave a second entry behind.
+    ///
+    /// Resuming is right for a session the desktop app has never seen -- that
+    /// is how a terminal session gets there in the first place. It is also free
+    /// for one it has already imported. It is only wrong for a session the app
+    /// started itself, where the import lands beside the original instead of on
+    /// it, and nothing on offer can focus that original: the two routes that
+    /// take the app's own id are gated off.
+    public static func resumeIsSafe(knownToDesktop: Bool, hasImportedCopy: Bool) -> Bool {
+        !knownToDesktop || hasImportedCopy
+    }
+
     public static func resume(cliSessionId: String) -> URL? {
         guard !cliSessionId.isEmpty else { return nil }
         var components = URLComponents()

@@ -265,3 +265,23 @@ final class SessionLinkTests: XCTestCase {
         XCTAssertNil(SessionLink.resume(cliSessionId: ""))
     }
 }
+
+final class ResumeSafetyTests: XCTestCase {
+    /// A terminal session is not in the desktop app at all, so importing it is
+    /// the whole point rather than a duplicate.
+    func testAnUnknownSessionIsSafeToResume() {
+        XCTAssertTrue(SessionLink.resumeIsSafe(knownToDesktop: false, hasImportedCopy: false))
+    }
+
+    /// The app dedupes on `local_<cli id>`, so the second resume finds the
+    /// first one's import and adds nothing.
+    func testAnAlreadyImportedSessionIsSafeToResume() {
+        XCTAssertTrue(SessionLink.resumeIsSafe(knownToDesktop: true, hasImportedCopy: true))
+    }
+
+    /// The one case that must not fire: the app started this session under an
+    /// id of its own, and the import would land beside it.
+    func testASessionTheAppStartedIsNotSafeToResume() {
+        XCTAssertFalse(SessionLink.resumeIsSafe(knownToDesktop: true, hasImportedCopy: false))
+    }
+}

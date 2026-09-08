@@ -3,7 +3,7 @@ import XCTest
 
 final class DesktopSessionTests: XCTestCase {
     private func session(model: String?) -> DesktopSession {
-        DesktopSession(title: nil, model: model, permissionMode: nil)
+        DesktopSession(title: nil, model: model, permissionMode: nil, hasImportedCopy: false)
     }
 
     func testModelLabelDropsThePrefix() {

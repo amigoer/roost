@@ -45,10 +45,16 @@ final class SettingsWindowController {
 }
 
 struct SettingsView: View {
-    /// Tall enough for English, which is the longer of the two languages here;
-    /// Chinese leaves a few points of slack rather than resizing the window
-    /// under the cursor when the language changes.
-    static let size = CGSize(width: 460, height: 960)
+    /// Shorter than the form it holds, which is fine: a grouped form on macOS
+    /// is backed by a scroll view, so the switches below the fold are a scroll
+    /// away rather than gone.
+    ///
+    /// Sized to the screen rather than to the content, because the content
+    /// outgrew the screen: the full form is around 960 pt and a 14-inch
+    /// MacBook Pro has about 957 pt of usable height, so a window tall enough
+    /// to show all of it would hang off the bottom of the display it was
+    /// centred on.
+    static let size = CGSize(width: 460, height: 640)
 
     @Bindable var model: RoostModel
     let retitle: (String) -> Void

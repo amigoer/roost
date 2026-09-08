@@ -114,9 +114,34 @@ public enum TranscriptReader {
             if let timestamp { lastSemanticAt = timestamp }
 
             guard let message = record["message"] as? [String: Any] else { continue }
-            if let stop = message["stop_reason"] as? String { lastSemanticStop = stop }
+            let blocks = (message["content"] as? [[String: Any]]) ?? []
+            // A sub-agent writes its own turns into this same file. They say
+            // what the sub-agent is doing rather than what the session is doing,
+            // so they are not allowed to start or end the session's turn.
+            let mainThread = record["isSidechain"] as? Bool != true
 
-            for block in (message["content"] as? [[String: Any]]) ?? [] {
+            if mainThread, isPrompt(type: type, record: record, blocks: blocks) {
+                // The person has spoken, so the previous turn is over whatever
+                // it looked like. Without this the session goes on reporting the
+                // stop reason of the turn before -- `done`, most often -- from
+                // the moment they press return until the model's first message
+                // lands, which is a median of thirteen seconds and can be three
+                // minutes. That gap is the whole of what this app is for.
+                toolUses.removeAll()
+                lastSemanticStop = nil
+                lastToolName = nil
+                lastDetail = nil
+            }
+
+            if mainThread, let stop = message["stop_reason"] as? String {
+                lastSemanticStop = stop
+                // A turn that has ended is not waiting on a tool. An abandoned
+                // call would otherwise outrank it and hold the session at
+                // `running`, then `stalled`, for as long as it stayed in view.
+                if stop == "end_turn" { toolUses.removeAll() }
+            }
+
+            for block in blocks {
                 switch block["type"] as? String {
                 case "tool_use":
                     if let id = block["id"] as? String {
@@ -137,7 +162,17 @@ public enum TranscriptReader {
         let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate
         let lastActivity = lastSemanticAt ?? modified ?? Date()
-        let dangling = toolUses.first { !toolResults.contains($0.key) }
+        // The one that has been outstanding longest, rather than whichever the
+        // dictionary happened to yield first. A turn can have several calls in
+        // flight at once, and both what the row says and when the grace period
+        // fires have to be the same answer every tick.
+        let dangling = toolUses
+            .filter { !toolResults.contains($0.key) }
+            .min { left, right in
+                let a = left.value.at ?? .distantFuture
+                let b = right.value.at ?? .distantFuture
+                return a == b ? left.key < right.key : a < b
+            }
 
         return Facts(pendingTool: dangling?.value.name,
                      pendingDetail: dangling?.value.detail,
@@ -146,6 +181,14 @@ public enum TranscriptReader {
                      lastToolName: lastToolName,
                      lastDetail: lastDetail,
                      lastActivityAt: lastActivity)
+    }
+
+    /// Whether a `user` record is the person typing rather than a tool
+    /// reporting back. Results arrive as user records too, and those are the
+    /// middle of a turn rather than the start of one.
+    static func isPrompt(type: String, record: [String: Any], blocks: [[String: Any]]) -> Bool {
+        guard type == "user", record["isMeta"] as? Bool != true else { return false }
+        return !blocks.contains { $0["type"] as? String == "tool_result" }
     }
 
     /// Arguments worth showing, in the order a person would want them. Keyed by

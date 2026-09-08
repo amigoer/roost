@@ -17,6 +17,11 @@ public actor SessionScanner {
     private var desktop: [String: DesktopSession] = [:]
     private var desktopReadAt: Date = .distantPast
     private var transcriptCache: [String: Cached] = [:]
+    /// Where each session's transcript turned out to be. Finding it means
+    /// listing every project directory and stating a file in each, because the
+    /// directory name encodes the cwd lossily and cannot be reconstructed --
+    /// 150 stats a tick here, for a path that never moves once it exists.
+    private var transcriptPaths: [String: URL] = [:]
     private var stateSince: [String: Date] = [:]
     private var lastStates: [String: SessionState] = [:]
 
@@ -58,6 +63,7 @@ public actor SessionScanner {
         }
 
         transcriptCache = transcriptCache.filter { live.contains($0.key) }
+        transcriptPaths = transcriptPaths.filter { live.contains($0.key) }
         stateSince = stateSince.filter { live.contains($0.key) }
         lastStates = lastStates.filter { live.contains($0.key) }
 
@@ -79,7 +85,7 @@ public actor SessionScanner {
 
     /// Parses only when the transcript actually changed.
     private func facts(for sessionId: String) -> TranscriptReader.Facts? {
-        guard let url = TranscriptReader.transcriptURL(sessionId: sessionId) else { return nil }
+        guard let url = transcriptPath(for: sessionId) else { return nil }
         let modifiedAt = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate ?? .distantPast
 
@@ -90,5 +96,14 @@ public actor SessionScanner {
         guard let facts = TranscriptReader.facts(url: url) else { return nil }
         transcriptCache[sessionId] = Cached(modifiedAt: modifiedAt, facts: facts)
         return facts
+    }
+
+    /// A miss is not cached: a session that has just started has no transcript
+    /// yet, and one that is never looked for again would never get a row.
+    private func transcriptPath(for sessionId: String) -> URL? {
+        if let known = transcriptPaths[sessionId] { return known }
+        guard let found = TranscriptReader.transcriptURL(sessionId: sessionId) else { return nil }
+        transcriptPaths[sessionId] = found
+        return found
     }
 }

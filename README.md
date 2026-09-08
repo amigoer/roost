@@ -89,7 +89,7 @@ change what one does.
 
 | Event | Carries |
 |:--|:--|
-| `PermissionRequest` | Every tool call that was about to raise a prompt — whatever the tool, whatever the session's permission mode. Nothing else ever fires it. |
+| `PermissionRequest` | Every tool call that was about to raise a prompt — whatever the tool, whatever the session's permission mode. Nothing else ever fires it, and a session with no way to prompt (`claude -p`) never raises it at all: that one fails on its own rather than waiting for anybody, so it has no business on the island. |
 | `PreToolUse` | Only `AskUserQuestion` and `ExitPlanMode`: the two calls that stop a session without being permissions at all, which no permission event fires for. Every other call it brings is dropped inside the hook, so the common path costs one set lookup and no round trip. |
 
 `PermissionRequest` runs where a prompt is about to appear and nowhere else, so
@@ -104,8 +104,10 @@ That guess is gone, and with it the whole class of cards for calls nobody was
 ever going to be asked about.
 
 While a call is held, the row for that session says so instead of reading as
-busy: **needs permission: Bash**, or **Explore needs input** when the call came
-from a sub-agent rather than the main thread. Claude Code writes nothing to the
+busy: **needs permission: Bash**, or **general-purpose needs input** when the
+call came from inside a sub-agent rather than from the main thread. The event
+carries `agent_id` and `agent_type` in exactly that case and in no other, which
+is what the row reads to tell the two apart. Claude Code writes nothing to the
 transcript when it prompts, so the hook is the only thing that can know, and the
 row and the fleet headline would otherwise both count the session as running.
 

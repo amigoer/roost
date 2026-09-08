@@ -76,12 +76,19 @@ public struct Strings: Sendable, Hashable {
     }
 
     public var usageSection: String { pick("Usage", "用量") }
-    public var showUsage: String {
-        pick("Show what is left of the usage windows", "显示用量窗口的剩余")
+    public var readStatusLine: String {
+        pick("Read the figure from your status line", "从 status line 读用量")
     }
-    public var usageNote: String {
-        pick("The five-hour and seven-day figures reach a status line and nowhere else on this Mac, so Roost stands in that path. Whatever status line you already run keeps running, unchanged, and turning this off puts it back exactly as it was.",
-             "五小时和七天的用量只会出现在 status line 里，这台 Mac 上别处都没有，所以 Roost 站在这条路上。你原本的 status line 照常运行、输出不变；关掉它就原样还回去。")
+    public var statusLineNote: String {
+        pick("Locally, and only while a session is rendering one: the desktop app renders none, and a Mac with nothing running renders none either. Whatever status line you already run keeps running, unchanged, and turning this off puts it back exactly as it was.",
+             "只在本机，而且只有会话正在渲染 status line 时才有：桌面 App 不渲染，什么都没跑的 Mac 也不渲染。你原本的 status line 照常运行、输出不变；关掉它就原样还回去。")
+    }
+    public var checkUsageOnline: String {
+        pick("Ask Anthropic what is left", "向 Anthropic 查询剩余用量")
+    }
+    public var usageOnlineNote: String {
+        pick("Besides the update check, the only thing Roost sends anywhere. About once a minute it asks api.anthropic.com for your own account's figures, using the token Claude Code already keeps in your keychain — read, never refreshed and never written back. Nothing about your sessions goes with it. Reading the token raises a keychain prompt the first time, and again after an update.",
+             "除了更新检查，这是 Roost 唯一往外发的东西。大约每分钟向 api.anthropic.com 问一次你自己账号的用量，用的是 Claude Code 已经存在钥匙串里的令牌 —— 只读，不刷新、也不写回。会话的任何信息都不会跟着出去。第一次读令牌会弹一次钥匙串授权，更新之后会再弹一次。")
     }
 
     public var languageSection: String { pick("Language", "语言") }

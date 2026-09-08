@@ -17,3 +17,7 @@ Package.resolved
 # Release artifacts
 .release/
 *.dmg
+
+# Internal notes, not for publication
+docs/issues.md
+docs/image.png

@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         notch.start()
         model.startRefreshing()
         model.startCheckingForUpdates()
+        model.startPollingUsage()
         model.refreshHookState()
         model.repairHooks()
         // A card appears the instant it is held, so the sound that goes with

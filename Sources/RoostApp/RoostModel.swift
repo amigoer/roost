@@ -38,14 +38,22 @@ final class RoostModel {
     /// A newer published build, once one has been seen.
     var update: ReleaseInfo?
 
-    /// What the last status line said about the quota windows.
+    /// What is left of the quota windows, whichever path last said so.
     ///
     /// Account-wide rather than per session: every session on this Mac spends
-    /// the same five-hour window, so the newest report describes all of them.
-    private(set) var usage: Usage?
+    /// the same five-hour window, so one reading describes all of them. Loaded
+    /// from disk at launch, because the figure someone opens the island to
+    /// check is most often one nothing has reported since the app started.
+    private(set) var usage: Usage? = UsageStore.load()
+
+    /// Whether anyone is looking at an island right now, which is the only
+    /// thing that makes a minute-by-minute poll worth making.
+    var isWatched = false
 
     func report(_ usage: Usage) {
-        self.usage = usage
+        let merged = usage.merged(with: self.usage)
+        self.usage = merged
+        UsageStore.save(merged)
     }
 
     func report(_ session: SessionReport) {
@@ -55,13 +63,27 @@ final class RoostModel {
         announce()
     }
 
-    /// The figure, while it is still describing the present. Nothing writes a
-    /// status line once the last session closes, and a number left on screen
-    /// after that is describing a window that has since moved on.
+    /// The figure, while either path is switched on to keep it coming. With
+    /// both off there is nothing behind the number and it should not be shown
+    /// at all; how old it is, is the footer's business rather than this one's.
     var liveUsage: Usage? {
-        guard showsUsage, let usage, usage.isFresh() else { return nil }
+        guard readsStatusLine || checksUsageOnline else { return nil }
         return usage
     }
+
+    /// Remembered across launches, and off until it is turned on.
+    ///
+    /// Besides the update check this is the only thing Roost sends anywhere, so
+    /// it is not something to find already running.
+    var checksUsageOnline = UserDefaults.standard.bool(forKey: usageOnlineKey) {
+        didSet {
+            UserDefaults.standard.set(checksUsageOnline, forKey: Self.usageOnlineKey)
+            startPollingUsage()
+            forgetUsageIfUnwatched()
+        }
+    }
+
+    static let usageOnlineKey = "checksUsageOnline"
 
     /// Remembered across launches, and on unless it is turned off.
     var checksForUpdates = UserDefaults.standard.object(forKey: updatesKey) as? Bool ?? true {
@@ -91,9 +113,9 @@ final class RoostModel {
     private(set) var answersPrompts = false
     /// Whether Codex has been told to talk to Roost.
     private(set) var watchesCodex = false
-    /// Whether the status line command is installed, which is the only way the
-    /// quota windows reach this app at all.
-    private(set) var showsUsage = false
+    /// Whether the status line command is installed, which is one of the two
+    /// ways the quota windows reach this app.
+    private(set) var readsStatusLine = false
     /// Agents whose settings file exists and could not be read. Roost writes
     /// over none of them, so the switches they govern are unavailable rather
     /// than off -- and saying which is the whole point of the line beside them.
@@ -134,7 +156,7 @@ final class RoostModel {
         let settings = claude.editable ?? [:]
         answersPrompts = HookInstall.isInstalled(agent: .claudeCode, command: hookCommand,
                                                  in: settings)
-        showsUsage = StatusLineInstall.isInstalled(settings, command: hookCommand)
+        readsStatusLine = StatusLineInstall.isInstalled(settings, command: hookCommand)
         watchesCodex = HookInstall.isInstalled(agent: .codex,
                                                command: hookCommand(for: .codex),
                                                in: codex.editable ?? [:])
@@ -190,7 +212,7 @@ final class RoostModel {
     }
 
     /// Wraps whatever status line is already configured, and unwraps it again.
-    func setShowsUsage(_ on: Bool) {
+    func setReadsStatusLine(_ on: Bool) {
         guard let settings = HookInstall.read().editable else {
             refreshHookState()
             return
@@ -199,10 +221,50 @@ final class RoostModel {
             ? StatusLineInstall.adding(command: hookCommand, to: settings)
             : StatusLineInstall.removing(command: hookCommand, from: settings)
         try? HookInstall.write(updated)
-        // A figure from before the switch describes a window nobody is
-        // reporting on any more.
-        if !on { usage = nil }
         refreshHookState()
+        forgetUsageIfUnwatched()
+    }
+
+    /// With nothing left to keep it current, the figure goes -- from screen and
+    /// from disk. A number nobody asked for reappearing at the next launch is
+    /// worse than no number at all.
+    private func forgetUsageIfUnwatched() {
+        guard !readsStatusLine, !checksUsageOnline else { return }
+        usage = nil
+        UsageStore.clear()
+    }
+
+    /// Asks Anthropic what is left, for as long as the switch is on.
+    ///
+    /// Every failure is silent and costs nothing but the next interval: an
+    /// expired credential, no network, a refusal. What was last read stays on
+    /// screen with the time it was read, which is the honest answer to a
+    /// question nobody can currently answer better.
+    func startPollingUsage() {
+        usageTask?.cancel()
+        guard checksUsageOnline else { return }
+        usageTask = Task { [weak self] in
+            var failures = 0
+            while !Task.isCancelled {
+                guard let self, self.checksUsageOnline else { return }
+                if let reading = await Self.poll() {
+                    self.report(reading)
+                    failures = 0
+                } else {
+                    failures += 1
+                }
+                let delay = UsageAPI.delay(watched: self.isWatched || self.isPinned,
+                                           failures: failures)
+                try? await Task.sleep(for: .seconds(delay))
+            }
+        }
+    }
+
+    /// Off the main actor: the credential read can touch the keychain and the
+    /// request is a request.
+    private static func poll() async -> Usage? {
+        guard let credential = Credentials.oauth(), credential.isValid() else { return nil }
+        return await UsageAPI.fetch(credential: credential)
     }
 
     var currentVersion = Bundle.main
@@ -221,6 +283,7 @@ final class RoostModel {
     private let scanner = SessionScanner()
     private var refreshTask: Task<Void, Never>?
     private var updateTask: Task<Void, Never>?
+    private var usageTask: Task<Void, Never>?
 
     var level: SignalLevel {
         SignalLevel.aggregate(sessions.map(\.state))

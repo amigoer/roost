@@ -127,18 +127,25 @@ struct SettingsView: View {
                 note(strings.soundsNote)
             }
 
+            // Two switches rather than one, because the two paths to the same
+            // figure cost different things: one stays on this Mac, the other
+            // leaves it. Bundling them would hide the second behind the first.
             Section {
-                Toggle(strings.showUsage, isOn: Binding(
-                    get: { model.showsUsage },
-                    set: { model.setShowsUsage($0) }
+                Toggle(strings.readStatusLine, isOn: Binding(
+                    get: { model.readsStatusLine },
+                    set: { model.setReadsStatusLine($0) }
                 ))
                 .toggleStyle(.switch)
                 .disabled(model.unreadableSettings.contains(.claudeCode))
                 unreadable(.claudeCode)
+                note(strings.statusLineNote)
+
+                Toggle(strings.checkUsageOnline, isOn: $model.checksUsageOnline)
+                    .toggleStyle(.switch)
             } header: {
                 Text(strings.usageSection)
             } footer: {
-                note(strings.usageNote)
+                note(strings.usageOnlineNote)
             }
 
             Section {

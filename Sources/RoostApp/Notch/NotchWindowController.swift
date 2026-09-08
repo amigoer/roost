@@ -111,6 +111,9 @@ final class NotchWindowController {
         hover.onChange = { [weak self] hovering in
             guard let self, let island = islands[uuid] else { return }
             island.state.isExpanded = hovering
+            // Any island open is somebody looking, which is what decides how
+            // often the quota poll is worth making.
+            model.isWatched = islands.values.contains { $0.state.isExpanded }
             if !hovering {
                 island.state.hoveredIndex = nil
                 island.state.hoveredApproval = nil

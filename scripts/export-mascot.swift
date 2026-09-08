@@ -5,6 +5,11 @@ import RoostCore
 /// drawn from the same grid the app draws from rather than exported by hand and
 /// left to drift a face behind.
 ///
+/// Checks the art before it draws any of it: a badge that touches the chick is
+/// refused rather than exported, because on the faces where the two share a
+/// colour it is not visible as a mistake in the result -- it just looks like a
+/// differently shaped chick.
+///
 /// Draws through AppKit itself -- no screen recording permission, no window
 /// server -- which is also what makes it produce the same image on any machine.
 ///
@@ -22,6 +27,15 @@ enum ExportMascot {
         guard let directory = arguments.first else {
             FileHandle.standardError.write(Data("usage: export-mascot <directory>\n".utf8))
             exit(2)
+        }
+
+        let contacts = badgeContacts()
+        guard contacts.isEmpty else {
+            for contact in contacts {
+                FileHandle.standardError.write(Data("\(contact)\n".utf8))
+            }
+            FileHandle.standardError.write(Data("badge touches the chick; nothing exported\n".utf8))
+            exit(1)
         }
 
         for face in MascotFace.allCases {
@@ -62,6 +76,42 @@ enum ExportMascot {
         NSGraphicsContext.restoreGraphicsState()
 
         return bitmap.representation(using: .png, properties: [:])
+    }
+
+    /// Every place a badge cell lands on, or beside, a cell of the chick --
+    /// through every pose and every offset a face can reach.
+    ///
+    /// The body rides a beat's offset and the badge does not, so the two are
+    /// compared where they actually land rather than where they are written.
+    /// Diagonals are allowed: a corner touch still reads as two shapes.
+    private static func badgeContacts() -> [String] {
+        var contacts: [String] = []
+        for face in MascotFace.allCases {
+            let clip = PixelChick.clip(face)
+            for (index, beat) in (clip.arrival + clip.loop).enumerated() {
+                var body: Set<[Int]> = []
+                var badge: Set<[Int]> = []
+                for (row, line) in beat.grid.enumerated() {
+                    for (column, character) in line.enumerated() {
+                        switch character {
+                        case "B", "K", "E": body.insert([row - beat.dy, column + beat.dx])
+                        case "A": badge.insert([row, column])
+                        default: break
+                        }
+                    }
+                }
+                for cell in badge.sorted(by: { $0.lexicographicallyPrecedes($1) }) {
+                    let around = [cell, [cell[0] - 1, cell[1]], [cell[0] + 1, cell[1]],
+                                  [cell[0], cell[1] - 1], [cell[0], cell[1] + 1]]
+                    for touched in around where body.contains(touched) {
+                        contacts.append("\(face.rawValue) beat \(index): badge "
+                                        + "r\(cell[0])c\(cell[1]) meets body "
+                                        + "r\(touched[0])c\(touched[1])")
+                    }
+                }
+            }
+        }
+        return contacts
     }
 
     private static func inks(_ face: MascotFace) -> [(Character, NSColor)] {

@@ -153,13 +153,12 @@ The code enforces these, and the comments say so:
 ## Interaction
 
 - **Hover** the notch to expand the list (up to 6 rows).
-- **Click a row** to open that session in the desktop app, by the only handle
-  its deep links accept: `claude://code/continue?session=local_…`, the same link
-  the app's own menus build. Blocked rows fall back to `needs-input` when the
-  session has no desktop record.
-- Current desktop builds gate code deep links per account — when the gate is
-  shut the app logs `code entry deep link gated off` and merely comes forward.
-  Nothing an outside app can change; the link Roost sends is already correct.
+- **Click a row** to open that conversation in the desktop app, via
+  `claude://resume?session=<cli id>` — the one route that focuses a session from
+  outside. A session the desktop app has not seen is imported first; clicking
+  again focuses what the first click imported, so the sidebar gains at most one
+  entry per session. The other two routes, `code/continue` and
+  `code/needs-input`, sit behind an account gate and quietly do nothing.
 - **Click Deny or Allow** on a held tool call. The island stays open on its own
   while one is waiting, so answering never depends on the cursor being there.
 - **Click the gear** in the panel's top-right for settings. Right-clicking the

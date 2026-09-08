@@ -250,3 +250,18 @@ final class MenuHitTests: XCTestCase {
                                               notch: notch, islandWidth: width))
     }
 }
+
+final class SessionLinkTests: XCTestCase {
+    /// The id that works is the CLI session id, not the desktop app's own
+    /// `local_` one: handing the resume route a local id gets "missing or
+    /// invalid session" and nothing else.
+    func testResumeCarriesTheCliSessionId() throws {
+        let url = try XCTUnwrap(SessionLink.resume(cliSessionId: "b2d3426a-ead4-4837-b918-e6cb3ce5446b"))
+        XCTAssertEqual(url.absoluteString,
+                       "claude://resume?session=b2d3426a-ead4-4837-b918-e6cb3ce5446b")
+    }
+
+    func testNoIdIsNoLink() {
+        XCTAssertNil(SessionLink.resume(cliSessionId: ""))
+    }
+}

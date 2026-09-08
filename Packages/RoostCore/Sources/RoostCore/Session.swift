@@ -7,10 +7,6 @@ public struct Session: Sendable, Identifiable, Hashable {
     public let name: String
     public let cwd: String
     public let entrypoint: String?
-    /// The desktop app's id for this session, when it started there. The only
-    /// handle its deep links accept, so without it a click can do no better
-    /// than raise the app.
-    public let desktopId: String?
     /// Model the session is running, short form.
     public let model: String?
     /// How the session answers permission prompts, when it is known.
@@ -44,7 +40,7 @@ public struct Session: Sendable, Identifiable, Hashable {
     }
 
     public init(id: String, pid: pid_t, name: String, cwd: String, entrypoint: String?,
-                desktopId: String? = nil, model: String? = nil, permissionMode: String? = nil,
+                model: String? = nil, permissionMode: String? = nil,
                 startedAt: Date, state: SessionState, stateSince: Date,
                 activity: String?, detail: String? = nil, lastActivityAt: Date) {
         self.id = id
@@ -52,7 +48,6 @@ public struct Session: Sendable, Identifiable, Hashable {
         self.name = name
         self.cwd = cwd
         self.entrypoint = entrypoint
-        self.desktopId = desktopId
         self.model = model
         self.permissionMode = permissionMode
         self.startedAt = startedAt

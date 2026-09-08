@@ -47,7 +47,6 @@ public actor SessionScanner {
                     ?? URL(fileURLWithPath: entry.cwd).lastPathComponent,
                 cwd: entry.cwd,
                 entrypoint: entry.entrypoint,
-                desktopId: known?.id,
                 model: known?.modelLabel,
                 permissionMode: known?.permissionMode,
                 startedAt: entry.startedAt,

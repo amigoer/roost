@@ -6,38 +6,11 @@ enum SessionActivator {
     private static let bundleID = "com.anthropic.claudefordesktop"
 
     static func activate(_ session: Session) {
-        guard let url = deepLink(for: session) else {
+        guard let url = SessionLink.resume(cliSessionId: session.id) else {
             raiseApp()
             return
         }
         NSWorkspace.shared.open(url)
-    }
-
-    /// `continue` is the route that takes a session, and the only handle it
-    /// accepts is the desktop app's own `local_<uuid>`; hand it a CLI session
-    /// id and it drops the parameter and just raises the app, which is what
-    /// used to happen here.
-    ///
-    /// Without a desktop id there is nothing to name, so a blocked row falls
-    /// back to `needs-input`: it opens whichever session has waited longest,
-    /// which is usually the one that was clicked.
-    private static func deepLink(for session: Session) -> URL? {
-        var components = URLComponents()
-        components.scheme = "claude"
-        components.host = "code"
-        var query = [URLQueryItem(name: "source", value: "roost")]
-
-        if let desktopId = session.desktopId {
-            components.path = "/continue"
-            query.append(URLQueryItem(name: "session", value: desktopId))
-        } else if case .blocked = session.state {
-            components.path = "/needs-input"
-        } else {
-            return nil
-        }
-
-        components.queryItems = query
-        return components.url
     }
 
     private static func raiseApp() {

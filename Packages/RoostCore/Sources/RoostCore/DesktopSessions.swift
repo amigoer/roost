@@ -2,9 +2,6 @@ import Foundation
 
 /// One session as the desktop app knows it.
 public struct DesktopSession: Sendable, Hashable {
-    /// The desktop app's own id, always `local_<uuid>`. Its deep links accept
-    /// nothing else: not the CLI session id, not the pid.
-    public let id: String
     public let title: String?
     /// Raw model id, e.g. `claude-opus-4-6`.
     public let model: String?
@@ -28,8 +25,8 @@ public struct DesktopSession: Sendable, Hashable {
 /// What the desktop app records about the sessions it started.
 ///
 /// The registry's derived `name` (e.g. "mq-studio-33") collides across sessions
-/// in the same project, and only this store knows the id a deep link can name,
-/// so it is worth the walk.
+/// in the same project, and nothing else knows which model a session is on, so
+/// it is worth the walk.
 public enum DesktopSessions {
     public static func defaultDirectory() -> URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -51,7 +48,7 @@ public enum DesktopSessions {
                   let id = json["sessionId"] as? String
             else { continue }
             let title = (json["title"] as? String).flatMap { $0.isEmpty ? nil : $0 }
-            result[cliId] = DesktopSession(id: id, title: title,
+            result[cliId] = DesktopSession(title: title,
                                            model: json["model"] as? String,
                                            permissionMode: json["permissionMode"] as? String)
         }

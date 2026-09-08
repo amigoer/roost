@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         model.approvals.permissionMode = { [weak model] sessionId in
             await model?.permissionMode(for: sessionId) ?? nil
         }
+        // A card appears the instant it is held, so the sound that goes with
+        // it cannot wait for the next scan.
+        model.approvals.onHold = { [weak model] _ in model?.announce() }
         approvals.start()
 
         // No menu bar item: another icon up there is exactly the clutter this

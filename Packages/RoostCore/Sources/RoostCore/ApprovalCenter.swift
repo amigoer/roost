@@ -19,6 +19,10 @@ public final class ApprovalCenter {
     /// nobody was ever going to be asked about.
     @ObservationIgnored public var permissionMode: ((String) async -> String?)?
 
+    /// Called the moment a call is actually held, for anything that has to
+    /// react to it sooner than the next scan does.
+    @ObservationIgnored public var onHold: ((ApprovalRequest) -> Void)?
+
     @ObservationIgnored private var waiters: [String: CheckedContinuation<ApprovalReply, Never>] = [:]
 
     /// The island answers one at a time, oldest first: the session behind it
@@ -36,6 +40,7 @@ public final class ApprovalCenter {
             }
         }
         pending.append(request)
+        onHold?(request)
         return await withCheckedContinuation { continuation in
             waiters[request.id] = continuation
         }

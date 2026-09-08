@@ -43,6 +43,13 @@ public struct Strings: Sendable, Hashable {
              "会往 ~/.claude/settings.json 里加一条 hook，指向本应用内的 helper；关掉它就把这条记录去掉。Roost 没开着、或者一分钟内没人回答，会话照旧自己弹提示。")
     }
 
+    public var soundSection: String { pick("Sound", "声音") }
+    public var playSounds: String { pick("Say it out loud", "用声音提示") }
+    public var soundsNote: String {
+        pick("Two synthesised chirps, no files: rising when a session stops on something only you can answer, falling when a turn ends. Nothing is said for the fleet already running when Roost opens.",
+             "两声合成音，不用音频文件：会话停在只有你能回答的事情上时音调上行，一轮结束时下行。Roost 刚打开时已经在跑的会话不会出声。")
+    }
+
     public var usageSection: String { pick("Usage", "用量") }
     public var showUsage: String {
         pick("Show what is left of the usage windows", "显示用量窗口的剩余")

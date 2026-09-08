@@ -8,6 +8,16 @@ final class RoostModel {
     private(set) var scanned: [Session] = []
     /// Tool calls held by the hook, waiting for an answer.
     let approvals = ApprovalCenter()
+    /// The chirps, and whether they are wanted.
+    let sounds = SoundBoard()
+
+    /// Lets the announcer see the fleet as it is now.
+    ///
+    /// Safe to call as often as anything likes: it decides from the difference
+    /// between two snapshots, so a second look at the same one says nothing.
+    func announce() {
+        sounds.observe(sessions)
+    }
 
     /// The sessions as the island shows them: what the scan read, plus the one
     /// fact only this process has -- a call of its own held at the gate. A
@@ -202,6 +212,7 @@ final class RoostModel {
                 guard let self else { return }
                 self.scanned = await self.scanner.scan()
                 self.approvals.expireStale()
+                self.announce()
                 // A stalled tool crosses the grace line without anything being
                 // written, so state can change with no file event to react to.
                 try? await Task.sleep(for: .seconds(2))

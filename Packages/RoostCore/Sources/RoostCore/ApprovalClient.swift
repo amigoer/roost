@@ -1,14 +1,34 @@
 import Foundation
 
-/// The hook's side of the wire: one request, one reply, one connection.
+/// The helpers' side of the wire: one message, one connection.
 ///
 /// Every failure returns `nil` so the caller falls through to the session's own
 /// prompt. Roost being absent, stopped or wedged must never be able to change
-/// what a tool call does.
+/// what a tool call does, or what a status line prints.
 public enum ApprovalClient {
     public static func ask(_ request: ApprovalRequest,
                            path: String = ApprovalSocket.path(),
                            timeout: TimeInterval = ApprovalSocket.timeout) -> ApprovalReply? {
+        connected(path: path, timeout: timeout) { fd in
+            guard send(.approval(request), on: fd),
+                  let line = readLine(fd: fd) else { return nil }
+            return try? JSONDecoder.wire.decode(ApprovalReply.self, from: line)
+        }
+    }
+
+    /// Tells the app what a status line just reported. Nothing is waited for:
+    /// this runs on every status line render, and a slow answer would be felt
+    /// on a line the user is looking at.
+    public static func report(_ usage: Usage,
+                              path: String = ApprovalSocket.path(),
+                              timeout: TimeInterval = 1) {
+        _ = connected(path: path, timeout: timeout) { fd in
+            send(.usage(usage), on: fd) ? true : nil
+        }
+    }
+
+    private static func connected<Value>(path: String, timeout: TimeInterval,
+                                         _ body: (Int32) -> Value?) -> Value? {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
         defer { close(fd) }
@@ -22,16 +42,19 @@ public enum ApprovalClient {
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &window, socklen_t(MemoryLayout<timeval>.size))
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &window, socklen_t(MemoryLayout<timeval>.size))
 
-        let connected = withUnsafePointer(to: &address) {
+        let result = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
                 connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        guard connected == 0,
-              var payload = try? JSONEncoder.wire.encode(request) else { return nil }
-        payload.append(0x0A)
+        guard result == 0 else { return nil }
+        return body(fd)
+    }
 
-        guard payload.withUnsafeBytes({ raw -> Bool in
+    private static func send(_ message: HookMessage, on fd: Int32) -> Bool {
+        guard var payload = try? JSONEncoder.wire.encode(message) else { return false }
+        payload.append(0x0A)
+        return payload.withUnsafeBytes { raw -> Bool in
             var sent = 0
             while sent < raw.count {
                 let n = write(fd, raw.baseAddress!.advanced(by: sent), raw.count - sent)
@@ -39,10 +62,7 @@ public enum ApprovalClient {
                 sent += n
             }
             return true
-        }) else { return nil }
-
-        guard let line = readLine(fd: fd) else { return nil }
-        return try? JSONDecoder.wire.decode(ApprovalReply.self, from: line)
+        }
     }
 
     /// One newline-terminated frame. Shared with the server: both ends of

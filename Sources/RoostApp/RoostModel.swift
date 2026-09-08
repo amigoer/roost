@@ -25,6 +25,24 @@ final class RoostModel {
     /// A newer published build, once one has been seen.
     var update: ReleaseInfo?
 
+    /// What the last status line said about the quota windows.
+    ///
+    /// Account-wide rather than per session: every session on this Mac spends
+    /// the same five-hour window, so the newest report describes all of them.
+    private(set) var usage: Usage?
+
+    func report(_ usage: Usage) {
+        self.usage = usage
+    }
+
+    /// The figure, while it is still describing the present. Nothing writes a
+    /// status line once the last session closes, and a number left on screen
+    /// after that is describing a window that has since moved on.
+    var liveUsage: Usage? {
+        guard showsUsage, let usage, usage.isFresh() else { return nil }
+        return usage
+    }
+
     /// Remembered across launches, and on unless it is turned off.
     var checksForUpdates = UserDefaults.standard.object(forKey: updatesKey) as? Bool ?? true {
         didSet {
@@ -51,13 +69,18 @@ final class RoostModel {
     /// Whether the approval hook is installed. Read from disk on demand rather
     /// than watched: it changes only when something here writes it.
     private(set) var answersPrompts = false
+    /// Whether the status line command is installed, which is the only way the
+    /// quota windows reach this app at all.
+    private(set) var showsUsage = false
 
     var hookCommand: String {
         Bundle.main.bundleURL.appending(path: "Contents/MacOS/roost-hook").path
     }
 
     func refreshHookState() {
-        answersPrompts = HookInstall.isInstalled(HookInstall.read(), command: hookCommand)
+        let settings = HookInstall.read()
+        answersPrompts = HookInstall.isInstalled(settings, command: hookCommand)
+        showsUsage = StatusLineInstall.isInstalled(settings, command: hookCommand)
     }
 
     /// Writes the user's own settings file, additively both ways.
@@ -67,6 +90,19 @@ final class RoostModel {
             ? HookInstall.adding(command: hookCommand, to: settings)
             : HookInstall.removing(command: hookCommand, from: settings)
         try? HookInstall.write(updated)
+        refreshHookState()
+    }
+
+    /// Wraps whatever status line is already configured, and unwraps it again.
+    func setShowsUsage(_ on: Bool) {
+        let settings = HookInstall.read()
+        let updated = on
+            ? StatusLineInstall.adding(command: hookCommand, to: settings)
+            : StatusLineInstall.removing(command: hookCommand, from: settings)
+        try? HookInstall.write(updated)
+        // A figure from before the switch describes a window nobody is
+        // reporting on any more.
+        if !on { usage = nil }
         refreshHookState()
     }
 
@@ -126,6 +162,10 @@ final class RoostModel {
     }
 
     var staleCount: Int { sessions.count - visibleSessions.count }
+
+    /// Whether the panel ends in a footer, which decides how tall it is. The
+    /// view and the hit test both read this so they cannot disagree.
+    var hasFooter: Bool { staleCount > 0 || update != nil || liveUsage != nil }
 
     var runningCount: Int {
         visibleSessions.count { if case .running = $0.state { true } else { false } }

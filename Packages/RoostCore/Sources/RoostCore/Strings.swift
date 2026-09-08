@@ -43,6 +43,15 @@ public struct Strings: Sendable, Hashable {
              "会往 ~/.claude/settings.json 里加一条 hook，指向本应用内的 helper；关掉它就把这条记录去掉。Roost 没开着、或者一分钟内没人回答，会话照旧自己弹提示。")
     }
 
+    public var usageSection: String { pick("Usage", "用量") }
+    public var showUsage: String {
+        pick("Show what is left of the usage windows", "显示用量窗口的剩余")
+    }
+    public var usageNote: String {
+        pick("The five-hour and seven-day figures reach a status line and nowhere else on this Mac, so Roost stands in that path. Whatever status line you already run keeps running, unchanged, and turning this off puts it back exactly as it was.",
+             "五小时和七天的用量只会出现在 status line 里，这台 Mac 上别处都没有，所以 Roost 站在这条路上。你原本的 status line 照常运行、输出不变；关掉它就原样还回去。")
+    }
+
     public var languageSection: String { pick("Language", "语言") }
     public var interfaceLanguage: String { pick("Interface", "界面") }
     public var languageNote: String {
@@ -67,6 +76,14 @@ public struct Strings: Sendable, Hashable {
     public func idleCount(_ count: Int) -> String { pick("\(count) idle", "\(count) 个闲置") }
     public func updateAvailable(_ version: String) -> String {
         pick("Roost \(version) available", "Roost \(version) 可更新")
+    }
+
+    /// The quota windows, named as short as the footer allows.
+    public var fiveHour: String { pick("5h", "5时") }
+    public var sevenDay: String { pick("7d", "7天") }
+    public func percent(_ used: Double) -> String { "\(Int((used * 100).rounded()))%" }
+    public func resetsIn(_ seconds: Int) -> String {
+        pick("resets in \(elapsed(seconds))", "\(elapsed(seconds))后重置")
     }
 
     public func waitingCount(_ count: Int) -> String { pick("\(count) waiting", "\(count) 个等待中") }

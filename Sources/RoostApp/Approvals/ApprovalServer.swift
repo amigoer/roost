@@ -1,17 +1,20 @@
 import Foundation
 import RoostCore
 
-/// Listens for the hook and hands each held tool call to the island.
+/// Listens for the helpers and hands what they say to the island.
 ///
-/// One connection, one request, one reply. The hook is sitting in a blocking
-/// read on the other end with a session stopped behind it, so nothing here may
-/// wait on anything but the person.
+/// One connection, one message. A held tool call has the hook sitting in a
+/// blocking read on the other end with a session stopped behind it, so nothing
+/// here may wait on anything but the person.
 final class ApprovalServer: @unchecked Sendable {
     private let handler: @Sendable (ApprovalRequest) async -> ApprovalReply
+    private let usage: @Sendable (Usage) async -> Void
     private var listener: Int32 = -1
 
-    init(handler: @escaping @Sendable (ApprovalRequest) async -> ApprovalReply) {
+    init(handler: @escaping @Sendable (ApprovalRequest) async -> ApprovalReply,
+         usage: @escaping @Sendable (Usage) async -> Void) {
         self.handler = handler
+        self.usage = usage
     }
 
     func start() {
@@ -79,11 +82,17 @@ final class ApprovalServer: @unchecked Sendable {
         var window = timeval(tv_sec: 5, tv_usec: 0)
         setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, &window, socklen_t(MemoryLayout<timeval>.size))
 
-        Task.detached { [handler] in
+        Task.detached { [handler, usage] in
             defer { close(connection) }
             guard let line = ApprovalClient.readLine(fd: connection),
-                  let request = try? JSONDecoder.wire.decode(ApprovalRequest.self, from: line)
-            else { return }
+                  let message = HookMessage.decode(line) else { return }
+
+            // A status line waits for nothing: it has already closed its end
+            // and gone back to printing.
+            guard case .approval(let request) = message else {
+                if case .usage(let report) = message { await usage(report) }
+                return
+            }
 
             let reply = await handler(request)
             guard var data = try? JSONEncoder.wire.encode(reply) else { return }

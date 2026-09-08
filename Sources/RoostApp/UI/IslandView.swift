@@ -24,7 +24,7 @@ struct IslandView: View {
                             notch: notchSize,
                             expanded: showsPanel,
                             sessionCount: model.visibleSessions.count,
-                            hasFooter: model.staleCount > 0,
+                            hasFooter: model.hasFooter,
                             heldHeight: model.heldHeight)
     }
 
@@ -105,8 +105,8 @@ struct IslandView: View {
                 }
             }
 
-            if model.staleCount > 0 || model.update != nil {
-                HStack(spacing: 7) {
+            if model.hasFooter {
+                HStack(spacing: 9) {
                     if model.staleCount > 0 {
                         MascotView(face: .idle, cell: MascotView.small)
                         Text(strings.idleCount(model.staleCount))
@@ -114,6 +114,9 @@ struct IslandView: View {
                             .foregroundStyle(Brand.textTertiary)
                     }
                     Spacer(minLength: 6)
+                    if let usage = model.liveUsage {
+                        UsageMeters(usage: usage, strings: strings)
+                    }
                     if let update = model.update {
                         Text(strings.updateAvailable(update.version))
                             .font(.system(size: 10, weight: .medium))

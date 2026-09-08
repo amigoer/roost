@@ -185,7 +185,7 @@ final class NotchWindowController {
         let notch = screen.signalAnchorRect.size
         let width = IslandGeometry.expandedSize(notch: notch,
                                                 sessionCount: model.visibleSessions.count,
-                                                hasFooter: model.staleCount > 0,
+                                                hasFooter: model.hasFooter,
                                                 heldHeight: model.heldHeight).width
         return IslandGeometry.menuHit(offsetFromTop: screen.frame.maxY - point.y,
                                       offsetFromLeft: point.x - (screen.frame.midX - width / 2),
@@ -200,7 +200,7 @@ final class NotchWindowController {
         let notch = screen.signalAnchorRect.size
         let width = IslandGeometry.expandedSize(notch: notch,
                                                 sessionCount: model.visibleSessions.count,
-                                                hasFooter: model.staleCount > 0,
+                                                hasFooter: model.hasFooter,
                                                 heldHeight: model.heldHeight).width
         let y = screen.frame.maxY - point.y
         let x = point.x - (screen.frame.midX - width / 2)
@@ -235,7 +235,7 @@ final class NotchWindowController {
                                        notch: anchor.size,
                                        expanded: expanded,
                                        sessionCount: model.visibleSessions.count,
-                                       hasFooter: model.staleCount > 0,
+                                       hasFooter: model.hasFooter,
                                        heldHeight: model.heldHeight)
         let padX = expanded ? 0 : Self.hitPaddingX
         let padY = expanded ? 0 : Self.hitPaddingY

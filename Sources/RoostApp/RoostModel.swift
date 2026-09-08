@@ -21,12 +21,18 @@ final class RoostModel {
         sounds.observe(sessions, spentWindow: spentUsage != nil)
     }
 
-    /// The sessions as the island shows them: what the scan read, plus the one
-    /// fact only this process has -- a call of its own held at the gate. A
-    /// session waiting on a card is waiting on you, and has to say so and sort
-    /// like it.
+    /// The sessions as the island shows them.
+    ///
+    /// Three sources, each answering what only it can. The scan says which
+    /// sessions exist and what they are doing. The hooks say *when* a turn
+    /// turned, which the transcript does not record until the model has
+    /// finished writing its answer -- fifteen seconds, measured, after you have
+    /// finished reading it. And this process alone knows about a call of its
+    /// own held at the gate: a session waiting on a card is waiting on you, and
+    /// has to say so and sort like it.
     var sessions: [Session] {
-        let all = scanned + reported.sessions()
+        let all = ReportedSessions.sharpened(scanned, by: reported.turnMarks())
+            + reported.sessions()
         guard !approvals.pending.isEmpty else { return Session.ordered(all) }
         return Session.ordered(all.map { session in
             guard let held = approvals.pending.first(where: { $0.sessionId == session.id })
@@ -245,9 +251,14 @@ final class RoostModel {
         guard checksUsageOnline else { return }
         usageTask = Task { [weak self] in
             var failures = 0
+            // The first look after the switch is turned on is somebody asking
+            // for the figure, so it does not wait behind the recheck interval.
+            var asked = true
             while !Task.isCancelled {
                 guard let self, self.checksUsageOnline else { return }
-                if let reading = await Self.poll() {
+                let reading = await Self.poll(fresh: asked)
+                asked = false
+                if let reading {
                     self.report(reading)
                     failures = 0
                 } else {
@@ -262,8 +273,14 @@ final class RoostModel {
 
     /// Off the main actor: the credential read can touch the keychain and the
     /// request is a request.
-    private static func poll() async -> Usage? {
-        guard let credential = Credentials.oauth(), credential.isValid() else { return nil }
+    ///
+    /// The credential is held rather than re-read: it belongs to Claude Code,
+    /// and reading another application's keychain item prompts for any build
+    /// not on its access list. Once a minute was once a dialog a minute.
+    private static func poll(fresh: Bool) async -> Usage? {
+        let store = CredentialStore.shared
+        guard let credential = fresh ? await store.refresh() : await store.current()
+        else { return nil }
         return await UsageAPI.fetch(credential: credential)
     }
 
@@ -337,9 +354,20 @@ final class RoostModel {
         }
     }
 
+    /// How wide the collapsed strip stands.
+    ///
+    /// Normally a function of how long something has been blocked. A spent
+    /// window claims the escalated width whatever the clock says, because it is
+    /// the one state whose right-hand slot holds a countdown rather than a
+    /// digit: `4h48m` is 39pt in English and 48pt in Chinese, and the resting
+    /// slot is 48pt including its padding. At the narrow width the clock ran
+    /// into the edge of the island, and in Chinese it wrapped onto a second
+    /// line and clipped against the notch.
     var tier: EscalationTier {
         let longest = blockedSessions.map(\.blockedFor).max() ?? 0
-        return EscalationTier(blockedFor: longest)
+        let escalation = EscalationTier(blockedFor: longest)
+        guard spentUsage != nil else { return escalation }
+        return escalation == .calm ? .elevated : escalation
     }
 
     /// Everything except conversations left idle long enough to be clutter.

@@ -105,8 +105,70 @@ public final class ReportedSessions {
         live = live.filter { now.timeIntervalSince($0.value.eventAt) < Self.forgetAfter }
     }
 
+    /// A turn boundary a hook announced, for an agent whose sessions Roost can
+    /// already see. The hook is the better clock and the transcript is the
+    /// better record, so this carries only the clock.
+    public struct TurnMark: Sendable, Hashable {
+        public let event: String
+        public let at: Date
+
+        public init(event: String, at: Date) {
+            self.event = event
+            self.at = at
+        }
+
+        /// Only the two boundaries mean anything on their own. Everything else
+        /// an agent announces is about a tool, which the transcript describes
+        /// better than the payload does.
+        var state: SessionState? {
+            switch event {
+            case "Stop": .done
+            case "UserPromptSubmit": .running
+            default: nil
+            }
+        }
+    }
+
+    public func turnMarks() -> [String: TurnMark] {
+        live.reduce(into: [:]) { marks, entry in
+            guard entry.value.source.hasRegistry else { return }
+            marks[entry.key] = TurnMark(event: entry.value.event, at: entry.value.eventAt)
+        }
+    }
+
+    /// What a hook adds to a session the scanner found on its own.
+    ///
+    /// Whichever spoke last wins. The transcript's timestamp advances with
+    /// every tool call, so a `UserPromptSubmit` from the top of the turn goes
+    /// stale within seconds and only the `Stop` at the end of it is ever newer
+    /// than the file -- which is exactly the moment the file has nothing to say
+    /// for another fifteen seconds.
+    ///
+    /// Nothing else about the row moves: the project, the title, the model and
+    /// what the session was last seen doing all still come off disk.
+    public static func sharpened(_ sessions: [Session],
+                                 by marks: [String: TurnMark]) -> [Session] {
+        guard !marks.isEmpty else { return sessions }
+        return sessions.map { session in
+            guard let mark = marks[session.id], mark.at > session.lastActivityAt,
+                  let state = mark.state else { return session }
+            var sharpened = session
+            sharpened.state = state
+            sharpened.lastActivityAt = mark.at
+            if case .done = state {
+                sharpened.activity = nil
+                sharpened.detail = nil
+            }
+            sharpened.stateSince = mark.at
+            return sharpened
+        }
+    }
+
     public func sessions(now: Date = Date()) -> [Session] {
-        live.map { id, entry in
+        // Rows for agents nothing else can see. An agent with a registry is
+        // found by reading it, and a second row for a session already listed is
+        // worse than none: it would outlive the process by twelve hours.
+        live.filter { !$0.value.source.hasRegistry }.map { id, entry in
             Session(id: id,
                     agent: entry.source,
                     pid: 0,

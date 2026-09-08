@@ -51,15 +51,28 @@ public enum AgentKind: String, Codable, Sendable, Hashable, CaseIterable {
 
     /// Events that are reported and never waited on.
     ///
-    /// Claude Code writes a registry of its live sessions and a transcript for
-    /// each, so Roost reads them and asks it for nothing. Codex writes neither
-    /// in a form that says what is happening now, so a row for one is built
-    /// out of these instead.
+    /// Codex writes no registry and no transcript that says what is happening
+    /// now, so a row for one is built entirely out of these.
+    ///
+    /// Claude Code writes both, and they answer *what* a session is doing far
+    /// better than any hook payload could -- but they answer *when* badly. A
+    /// turn's last message is not written until the model has finished writing
+    /// it, measured here at a median of 15 seconds after the work stopped, and
+    /// the row reads as busy for all of it while the answer is already on
+    /// screen. These two say the same thing at the moment it becomes true, and
+    /// nothing else about the row changes.
     public var lifecycleEvents: [String] {
         switch self {
-        case .claudeCode: []
+        case .claudeCode: ["UserPromptSubmit", "Stop"]
         case .codex: ["SessionStart", "UserPromptSubmit", "PreToolUse",
                       "PostToolUse", "Stop", "SessionEnd"]
         }
     }
+
+    /// Whether Roost can find this agent's live sessions without being told.
+    ///
+    /// Claude Code writes a registry of them, so its hooks only ever sharpen a
+    /// row that already exists. Codex writes none, so a row for one of its
+    /// sessions exists exactly as long as its hooks keep saying so.
+    public var hasRegistry: Bool { self == .claudeCode }
 }

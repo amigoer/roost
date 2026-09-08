@@ -72,9 +72,13 @@ final class AgentHookInstallTests: XCTestCase {
     }
 
     /// Claude Code writes a registry and transcripts of its own, so a reported
-    /// row for one would be a duplicate of a row already on screen.
+    /// row for one would be a duplicate of a row already on screen. What its
+    /// hooks are for is the one thing the files are late with -- when a turn
+    /// turned -- so it announces those two boundaries and nothing else.
     func testOnlyAnAgentWithNoRegistryReportsItself() {
-        XCTAssertTrue(AgentKind.claudeCode.lifecycleEvents.isEmpty)
+        XCTAssertTrue(AgentKind.claudeCode.hasRegistry)
+        XCTAssertFalse(AgentKind.codex.hasRegistry)
+        XCTAssertEqual(AgentKind.claudeCode.lifecycleEvents, ["UserPromptSubmit", "Stop"])
         XCTAssertFalse(AgentKind.codex.lifecycleEvents.isEmpty)
     }
 

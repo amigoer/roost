@@ -58,6 +58,17 @@ public final class ApprovalCenter {
         reply(id, .answer(question.options[index].label))
     }
 
+    /// Give the call back to the session it came from.
+    ///
+    /// Holding a call is also taking it away: while the island has it, the
+    /// agent's own prompt does not appear, so there is exactly one place to
+    /// answer and it is not the one the person is looking at. `ask` is the
+    /// decision that means *I did not decide this*, and a session handed one
+    /// prompts the way it always did.
+    public func handBack(_ id: String) {
+        reply(id, ApprovalReply(decision: .ask))
+    }
+
     private func reply(_ id: String, _ reply: ApprovalReply) {
         pending.removeAll { $0.id == id }
         waiters.removeValue(forKey: id)?.resume(returning: reply)

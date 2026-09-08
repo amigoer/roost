@@ -152,7 +152,15 @@ final class NotchWindowController {
             }
             guard let index = rowIndex(at: point, on: uuid),
                   index < model.visibleSessions.count else { return }
-            SessionActivator.activate(model.visibleSessions[index])
+            let session = model.visibleSessions[index]
+            // Going to a session that is holding a call is saying you would
+            // rather answer it there. Roost stands in for the prompt; it does
+            // not own it, so it hands the call back on the way and the session
+            // asks the way it always did.
+            if let held = model.approvals.pending.first(where: { $0.sessionId == session.id }) {
+                model.approvals.handBack(held.id)
+            }
+            SessionActivator.activate(session)
         }
         hover.onSecondaryClick = { [weak self] point in
             self?.onSecondaryClick?(point)

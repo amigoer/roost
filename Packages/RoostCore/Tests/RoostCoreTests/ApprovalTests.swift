@@ -390,3 +390,68 @@ final class SessionLinkTests: XCTestCase {
                                                  entrypoint: "cli"))
     }
 }
+
+/// Giving a held call back to the session it came from.
+///
+/// Holding a call is also taking it away: while the island has it, the agent's
+/// own prompt does not appear. Roost stands in for that prompt rather than
+/// owning it, so there has to be a way out that leaves the session exactly as
+/// it would have been.
+@MainActor
+final class HandBackTests: XCTestCase {
+    private func request(_ kind: HeldKind) -> ApprovalRequest {
+        ApprovalRequest(sessionId: "s1", cwd: "/tmp/roost", tool: "AskUserQuestion",
+                        detail: nil, kind: kind)
+    }
+
+    private let question = HeldQuestion(
+        prompt: "which one?", header: "Approach",
+        options: [.init(label: "A"), .init(label: "B")])
+
+    func testHandingBackLeavesTheSessionToPromptItself() async {
+        let centre = ApprovalCenter()
+        let held = request(.question(question))
+        async let reply = centre.handle(held)
+        while centre.current == nil { await Task.yield() }
+        centre.handBack(held.id)
+        let decision = await reply
+        // `ask` is the one decision the hook prints nothing for, which is what
+        // makes the session prompt the way it always did.
+        XCTAssertEqual(decision.decision, ApprovalDecision.ask)
+    }
+
+    func testHandingBackClearsTheCard() async {
+        let centre = ApprovalCenter()
+        let held = request(.question(question))
+        async let reply = centre.handle(held)
+        while centre.current == nil { await Task.yield() }
+        centre.handBack(held.id)
+        _ = await reply
+        XCTAssertNil(centre.current)
+        XCTAssertTrue(centre.pending.isEmpty)
+    }
+
+    /// A hand-back must not read as an answer: nothing was chosen.
+    func testHandingBackIsNotAnAnswer() async {
+        let centre = ApprovalCenter()
+        let held = request(.question(question))
+        async let reply = centre.handle(held)
+        while centre.current == nil { await Task.yield() }
+        centre.handBack(held.id)
+        let decision = await reply
+        XCTAssertNil(decision.reason)
+        XCTAssertNotEqual(decision.decision, ApprovalDecision.deny)
+    }
+
+    /// The same door the timeout already uses, so both leave the session in the
+    /// one state it knows how to recover from.
+    func testATimeoutHandsBackTheSameWay() async {
+        let centre = ApprovalCenter()
+        let held = request(.question(question))
+        async let reply = centre.handle(held)
+        while centre.current == nil { await Task.yield() }
+        centre.expireStale(now: Date().addingTimeInterval(ApprovalSocket.timeout + 1))
+        let decision = await reply
+        XCTAssertEqual(decision.decision, ApprovalDecision.ask)
+    }
+}

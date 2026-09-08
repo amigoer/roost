@@ -27,6 +27,12 @@ public enum AgentKind: String, Codable, Sendable, Hashable, CaseIterable {
         }
     }
 
+    /// The same path as a person would write it down, for a message that has
+    /// to be actionable.
+    public var hooksPath: String {
+        (hooksURL.path as NSString).abbreviatingWithTildeInPath
+    }
+
     /// The events that hold a session while the island answers.
     ///
     /// `PermissionRequest` runs where a permission prompt is about to appear

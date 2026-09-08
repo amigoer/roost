@@ -97,11 +97,48 @@ public enum HookInstall {
 
     // MARK: - Disk
 
-    public static func read(_ url: URL = settingsURL()) -> [String: Any] {
-        guard let data = try? Data(contentsOf: url),
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return [:] }
-        return json
+    /// What an agent's settings file holds.
+    ///
+    /// The three cases exist because two of them used to be one. A file that
+    /// is not there and a file that does not parse both read as "no settings",
+    /// and every caller writes what it read back -- so a `settings.json` with
+    /// a comment in it, or a missing comma, or a write cut half way, was
+    /// replaced by one holding nothing but Roost's own hooks, taking the
+    /// user's permissions, env and MCP servers with it.
+    public enum SettingsFile {
+        case absent
+        case parsed([String: Any])
+        /// Exists, holds something, and is not a JSON object.
+        case unreadable
+
+        /// What to build the next write on, and `nil` when the file has to be
+        /// left exactly as it is: what cannot be read cannot be carried, so it
+        /// is not written over either.
+        public var editable: [String: Any]? {
+            switch self {
+            case .absent: [:]
+            case .parsed(let settings): settings
+            case .unreadable: nil
+            }
+        }
+    }
+
+    /// Reads the file, keeping "not there" apart from "not readable".
+    ///
+    /// An empty file counts as absent: there is nothing in it to lose, and one
+    /// left behind by a crashed editor would otherwise strand every switch
+    /// that writes to it.
+    public static func read(_ url: URL = settingsURL()) -> SettingsFile {
+        guard let data = try? Data(contentsOf: url) else {
+            // Unreadable for a reason of its own -- a permission, a directory
+            // where a file should be -- which is still not an excuse to write.
+            return FileManager.default.fileExists(atPath: url.path) ? .unreadable : .absent
+        }
+        let text = String(data: data, encoding: .utf8)
+        if text?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? false { return .absent }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return .unreadable }
+        return .parsed(json)
     }
 
     public static func write(_ settings: [String: Any], to url: URL = settingsURL()) throws {

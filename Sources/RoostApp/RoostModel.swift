@@ -94,6 +94,10 @@ final class RoostModel {
     /// Whether the status line command is installed, which is the only way the
     /// quota windows reach this app at all.
     private(set) var showsUsage = false
+    /// Agents whose settings file exists and could not be read. Roost writes
+    /// over none of them, so the switches they govern are unavailable rather
+    /// than off -- and saying which is the whole point of the line beside them.
+    private(set) var unreadableSettings: Set<AgentKind> = []
 
     var hookCommand: String {
         Bundle.main.bundleURL.appending(path: "Contents/MacOS/roost-hook").path
@@ -117,18 +121,35 @@ final class RoostModel {
 
     func refreshHookState() {
         opensAtLogin = LoginItem.isEnabled
-        let settings = HookInstall.read()
+
+        let claude = HookInstall.read()
+        let codex = HookInstall.read(AgentKind.codex.hooksURL)
+        var unreadable: Set<AgentKind> = []
+        if claude.editable == nil { unreadable.insert(.claudeCode) }
+        if codex.editable == nil { unreadable.insert(.codex) }
+        unreadableSettings = unreadable
+
+        // A file nothing of ours could be found in reads as off, which is true
+        // either way: an unreadable one is also one Roost has never written to.
+        let settings = claude.editable ?? [:]
         answersPrompts = HookInstall.isInstalled(agent: .claudeCode, command: hookCommand,
                                                  in: settings)
         showsUsage = StatusLineInstall.isInstalled(settings, command: hookCommand)
         watchesCodex = HookInstall.isInstalled(agent: .codex,
                                                command: hookCommand(for: .codex),
-                                               in: HookInstall.read(AgentKind.codex.hooksURL))
+                                               in: codex.editable ?? [:])
     }
 
     /// Writes the user's own settings file, additively both ways.
+    ///
+    /// A file that could not be read is left alone. Turning a switch on is
+    /// never worth replacing everything else in it, and the refresh is what
+    /// puts the reason on screen beside the switch that just refused to move.
     func setAnswersPrompts(_ on: Bool) {
-        let settings = HookInstall.read()
+        guard let settings = HookInstall.read().editable else {
+            refreshHookState()
+            return
+        }
         let updated = on
             ? HookInstall.adding(agent: .claudeCode, command: hookCommand, to: settings)
             : HookInstall.removing(command: hookCommand, from: settings)
@@ -144,8 +165,7 @@ final class RoostModel {
     /// not a new decision: the switch is already on, and this only writes what
     /// turning it on today would have written.
     func repairHooks() {
-        guard answersPrompts else { return }
-        let settings = HookInstall.read()
+        guard answersPrompts, let settings = HookInstall.read().editable else { return }
         let updated = HookInstall.adding(agent: .claudeCode, command: hookCommand, to: settings)
         guard !NSDictionary(dictionary: updated).isEqual(to: settings) else { return }
         try? HookInstall.write(updated)
@@ -156,7 +176,10 @@ final class RoostModel {
     func setWatchesCodex(_ on: Bool) {
         let url = AgentKind.codex.hooksURL
         let command = hookCommand(for: .codex)
-        let settings = HookInstall.read(url)
+        guard let settings = HookInstall.read(url).editable else {
+            refreshHookState()
+            return
+        }
         let updated = on
             ? HookInstall.adding(agent: .codex, command: command, to: settings)
             : HookInstall.removing(command: command, from: settings)
@@ -168,7 +191,10 @@ final class RoostModel {
 
     /// Wraps whatever status line is already configured, and unwraps it again.
     func setShowsUsage(_ on: Bool) {
-        let settings = HookInstall.read()
+        guard let settings = HookInstall.read().editable else {
+            refreshHookState()
+            return
+        }
         let updated = on
             ? StatusLineInstall.adding(command: hookCommand, to: settings)
             : StatusLineInstall.removing(command: hookCommand, from: settings)

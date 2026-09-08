@@ -44,6 +44,14 @@ public struct Strings: Sendable, Hashable {
              "没启动的 Roost 是看不见的：它没有 Dock 图标，也没有菜单栏图标，少了也不会有人发现。")
     }
 
+    /// Stands in for any switch whose file cannot be written. Names the path,
+    /// because that is the only part of this a person can act on.
+    public func settingsUnreadable(_ path: String) -> String {
+        pick("\(path) is not valid JSON. Roost writes over nothing it cannot read, so this stays off until the file parses.",
+             "\(path) 不是有效的 JSON。Roost 不会覆盖读不懂的文件，所以在它能被解析之前这里一直是关的。")
+    }
+    public var revealSettings: String { pick("Reveal", "去查看") }
+
     public var approvalsSection: String { pick("Approvals", "权限确认") }
     public var answerPrompts: String { pick("Answer permission prompts in the island", "在岛上回答权限确认") }
     public var approvalsNote: String {

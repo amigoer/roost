@@ -107,6 +107,8 @@ struct SettingsView: View {
                     set: { model.setWatchesCodex($0) }
                 ))
                 .toggleStyle(.switch)
+                .disabled(model.unreadableSettings.contains(.codex))
+                unreadable(.codex)
             } header: {
                 Text(strings.agentsSection)
             } footer: {
@@ -131,6 +133,8 @@ struct SettingsView: View {
                     set: { model.setShowsUsage($0) }
                 ))
                 .toggleStyle(.switch)
+                .disabled(model.unreadableSettings.contains(.claudeCode))
+                unreadable(.claudeCode)
             } header: {
                 Text(strings.usageSection)
             } footer: {
@@ -155,6 +159,8 @@ struct SettingsView: View {
                     set: { model.setAnswersPrompts($0) }
                 ))
                 .toggleStyle(.switch)
+                .disabled(model.unreadableSettings.contains(.claudeCode))
+                unreadable(.claudeCode)
             } header: {
                 Text(strings.approvalsSection)
             } footer: {
@@ -170,6 +176,20 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .onChange(of: model.language, initial: true) { retitle(strings.settingsTitle) }
+    }
+
+    /// Why a switch will not move, for a settings file that exists and does
+    /// not parse. Nothing at all when the file is fine, which is every time.
+    @ViewBuilder
+    private func unreadable(_ agent: AgentKind) -> some View {
+        if model.unreadableSettings.contains(agent) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                note(strings.settingsUnreadable(agent.hooksPath))
+                Button(strings.revealSettings) {
+                    NSWorkspace.shared.activateFileViewerSelecting([agent.hooksURL])
+                }
+            }
+        }
     }
 
     private func note(_ body: String) -> some View {

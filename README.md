@@ -77,10 +77,10 @@ asks Roost, and the island shows the call with **Deny** and **Allow**.
 
 <img src="docs/approval.png" alt="A held Bash call, with Deny and Allow">
 
-Turn it on from the notch's right-click menu — *Answer permission prompts here*.
-That adds one entry to `~/.claude/settings.json` pointing at the `roost-hook`
-binary inside the app bundle. The same item takes it back out, and hooks that
-are not Roost's are never touched.
+Turn it on in Settings — *Answer permission prompts in the island*. That adds
+one entry to `~/.claude/settings.json` pointing at the `roost-hook`
+binary inside the app bundle. The same switch takes it back out, and hooks that are
+not Roost's are never touched.
 
 Failure is deliberately boring. If Roost is not running, if the socket is gone,
 if nobody answers within 60 seconds — the hook prints nothing and the session
@@ -124,7 +124,7 @@ into an `N idle` footer.
 
 The one request Roost makes is an update check against GitHub's releases API,
 every six hours, sending nothing but the request itself. A newer version puts a
-dot on the menu button and a line in the footer; installing it stays manual,
+dot on the gear and a line in the footer; installing it stays manual,
 because an ad-hoc signed build has no signature worth checking. Switch the check
 off under *Check automatically*.
 
@@ -162,11 +162,19 @@ The code enforces these, and the comments say so:
   Nothing an outside app can change; the link Roost sends is already correct.
 - **Click Deny or Allow** on a held tool call. The island stays open on its own
   while one is waiting, so answering never depends on the cursor being there.
-- **Click the ⋯** in the panel's top-right for the menu: approvals, updates,
-  forced states, quit. Right-clicking the notch opens the same menu, including
-  when the island is collapsed and there is nothing to point at.
+- **Click the gear** in the panel's top-right for settings. Right-clicking the
+  notch offers the same window plus Quit, which is what to reach for when the
+  island is collapsed and there is nothing to point at.
 - Displays without a notch get a 185 pt stand-in strip, centred where a notch
   would be.
+
+## Settings
+
+<img src="docs/settings.png" width="460" alt="The settings window">
+
+Everything with a choice in it lives here: the update check, the approval hook,
+and the preview states. It is also the way out — an accessory app has no Dock
+icon to quit from.
 
 ## Install
 
@@ -217,9 +225,9 @@ unit tested without a screen.
 
 ## Development
 
-Right-clicking the notch opens a debug menu that forces any state — dormant,
-running, done, waiting, stalled, error, and the escalated variants — so the
-visual design can be judged without waiting for a real session to produce it.
+Settings has a *Preview* picker that forces any state — dormant, running, done,
+waiting, stalled, error, and the escalated variants — so the visual design can
+be judged without waiting for a real session to produce it.
 
 ## Status
 

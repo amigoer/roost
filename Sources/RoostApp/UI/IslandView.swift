@@ -140,10 +140,10 @@ struct IslandView: View {
         .frame(height: notchSize.height)
     }
 
-    /// The way to the menu. A dot on it when there is a newer build, since
-    /// that is the only other thing in there worth going to look for.
+    /// The way into settings, and with it the only visible way out of the app.
+    /// A dot on it when there is a newer build.
     private var menuButton: some View {
-        Image(systemName: "ellipsis")
+        Image(systemName: "gearshape.fill")
             .font(.system(size: 11, weight: .bold))
             .foregroundStyle(state.hoveredMenu ? Brand.textPrimary : Brand.textSecondary)
             .frame(width: IslandGeometry.Menu.buttonSize,

@@ -21,9 +21,31 @@ final class RoostModel {
 
     static let updatesKey = "checksForUpdates"
 
-    var currentVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    /// Whether the approval hook is installed. Read from disk on demand rather
+    /// than watched: it changes only when something here writes it.
+    private(set) var answersPrompts = false
+
+    var hookCommand: String {
+        Bundle.main.bundleURL.appending(path: "Contents/MacOS/roost-hook").path
     }
+
+    func refreshHookState() {
+        answersPrompts = HookInstall.isInstalled(HookInstall.read(), command: hookCommand)
+    }
+
+    /// Writes the user's own settings file, additively both ways.
+    func setAnswersPrompts(_ on: Bool) {
+        let settings = HookInstall.read()
+        let updated = on
+            ? HookInstall.adding(command: hookCommand, to: settings)
+            : HookInstall.removing(command: hookCommand, from: settings)
+        try? HookInstall.write(updated)
+        refreshHookState()
+    }
+
+    var currentVersion = Bundle.main
+        .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+
 
 
     /// Set by the debug menu to force a state while detection is being tuned.
@@ -127,5 +149,31 @@ final class RoostModel {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+    }
+}
+
+extension RoostModel {
+    /// Forced states, so the visual design can be judged before the detection
+    /// layer is trusted to produce each one on demand.
+    struct Preset {
+        let name: String
+        let override: PreviewOverride?
+    }
+
+    static let presets: [Preset] = [
+        Preset(name: "Live detection", override: nil),
+        Preset(name: "Dormant", override: .init(level: .dormant, tier: .calm, blockedCount: 0, face: .idle)),
+        Preset(name: "Running", override: .init(level: .running, tier: .calm, blockedCount: 0, face: .running)),
+        Preset(name: "Done", override: .init(level: .done, tier: .calm, blockedCount: 0, face: .done)),
+        Preset(name: "Waiting", override: .init(level: .blocked, tier: .calm, blockedCount: 1, face: .waiting)),
+        Preset(name: "Waiting, three of them", override: .init(level: .blocked, tier: .calm, blockedCount: 3, face: .waiting)),
+        Preset(name: "Waiting, escalated", override: .init(level: .blocked, tier: .elevated, blockedCount: 1, face: .waiting)),
+        Preset(name: "Stalled", override: .init(level: .blocked, tier: .calm, blockedCount: 1, face: .stalled)),
+        Preset(name: "Error", override: .init(level: .blocked, tier: .calm, blockedCount: 1, face: .error)),
+    ]
+
+    var presetName: String {
+        get { Self.presets.first { $0.override == previewOverride }?.name ?? Self.presets[0].name }
+        set { previewOverride = Self.presets.first { $0.name == newValue }?.override }
     }
 }

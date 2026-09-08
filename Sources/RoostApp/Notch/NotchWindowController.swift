@@ -12,6 +12,8 @@ import RoostCore
 final class NotchWindowController {
     /// Right-click on any island, in screen coordinates.
     var onSecondaryClick: ((NSPoint) -> Void)?
+    /// The gear in an island's header.
+    var onGear: (() -> Void)?
 
     /// Panels stay a fixed generous size and only the SwiftUI content animates
     /// inside them. Resizing an NSPanel per frame makes NSHostingView relayout
@@ -126,7 +128,7 @@ final class NotchWindowController {
         hover.onClick = { [weak self] point in
             guard let self else { return }
             if menuHit(at: point, on: uuid) {
-                onSecondaryClick?(point)
+                onGear?()
                 return
             }
             if let held = model.approvals.current, let hit = approvalHit(at: point, on: uuid) {

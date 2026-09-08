@@ -74,9 +74,9 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 
 <img src="docs/approval.png" alt="被按住的 Bash 调用，右侧是 Deny 和 Allow">
 
-从刘海的右键菜单里打开——*Answer permission prompts here*。它往
-`~/.claude/settings.json` 里加一条指向 app 包内 `roost-hook` 的记录；同一个菜单项
-再点一次就删掉，别人的 hook 一个都不动。
+在设置里打开——*Answer permission prompts in the island*。它往
+`~/.claude/settings.json` 里加一条指向 app 包内 `roost-hook` 的记录；同一个开关
+关掉就删除，别人的 hook 一个都不动。
 
 失败路径故意做得很无聊：Roost 没在跑、socket 不在、60 秒没人答——hook 什么都不输出，
 会话就按它原来的方式弹窗。它可以让一次工具调用多等一会儿，但改不了这次调用的结果。
@@ -112,7 +112,7 @@ Roost 把这一件事放在你本来就会看的地方：刘海。没事发生�
 `done` 状态超过 **30 分钟**的会话不再单独列出，折叠成底部的 `N idle` 一行。
 
 Roost 唯一发出的请求是每 6 小时向 GitHub 的 releases API 查一次有没有新版本，
-除了请求本身不带任何信息。有新版时菜单按钮上出现一个点、底部多一行提示；
+除了请求本身不带任何信息。有新版时齿轮上出现一个点、底部多一行提示；
 安装仍然是手动的——ad-hoc 签名的包没有值得校验的签名，不该自己覆盖自己。
 不想要的话在菜单里关掉 *Check automatically*。
 
@@ -145,9 +145,16 @@ Roost 唯一发出的请求是每 6 小时向 GitHub 的 releases API 查一次�
   Roost 这边发出的链接已经是对的。
 - **点 Deny 或 Allow** 回答被按住的工具调用。有卡片在等的时候岛会自己保持展开，
   不需要鼠标一直停在那儿。
-- **点面板右上角的 ⋯** 打开菜单：批准开关、检查更新、强制状态、退出。右键点击刘海
-  是同一个菜单，岛收起、没东西可点的时候也能用。
+- **点面板右上角的齿轮**打开设置。右键点击刘海给的是同一个窗口外加"退出"——
+  岛收起、没东西可点的时候用这个。
 - 没有刘海的显示器会得到一条 185 pt 的替代条，位置就在刘海本该在的地方。
+
+## 设置
+
+<img src="docs/settings.png" width="460" alt="设置窗口">
+
+所有有得选的东西都在这里：更新检查、批准 hook、预览状态。**退出也在这里**——
+accessory 应用没有 Dock 图标可以退。
 
 ## 安装
 
@@ -197,8 +204,8 @@ Packages/RoostCore/
 
 ## 开发
 
-右键点击刘海会打开调试菜单，可以强制切到任意状态——dormant、running、done、
-waiting、stalled、error 以及升级后的变体——这样不必等真实会话出现就能判断视觉效果。
+设置里的 *Preview* 可以强制切到任意状态——dormant、running、done、waiting、
+stalled、error 以及升级后的变体——这样不必等真实会话出现就能判断视觉效果。
 
 ## 项目状态
 

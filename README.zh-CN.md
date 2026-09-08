@@ -233,7 +233,10 @@ Roost 唯一发出的请求是每 6 小时向 GitHub 的 releases API 查一次�
 
 ## 设置
 
-<img src="docs/settings.zh-CN.png" width="460" alt="设置窗口">
+<img src="docs/settings.zh-CN.png" width="400" alt="设置窗口里的每一个开关">
+
+上面是全部开关；窗口本身比这矮，会滚动，所以不会有东西被折叠线藏起来。这张图由
+`scripts/settings-screenshots.sh` 从真实界面生成，这也是它不会和应用实际说的话跑偏的原因。
 
 所有值得你做选择的东西都在这里，每个开关下面都有一句话说明它到底干了什么：
 要不要检查更新、要不要开机启动、界面说哪种语言、要不要在岛上回答权限确认、

@@ -276,7 +276,12 @@ The code enforces these, and the comments say so:
 
 ## Settings
 
-<img src="docs/settings.png" width="460" alt="The settings window">
+<img src="docs/settings.png" width="400" alt="Every switch in the settings window">
+
+Every switch is shown above; the window itself is shorter than that and
+scrolls, so nothing is hidden by the fold. The shot is generated from the real
+view by `scripts/settings-screenshots.sh`, which is what stops it drifting from
+what the app actually says.
 
 Everything worth choosing lives here, each switch with the sentence that says
 what it actually does: whether to check for updates and whether to open at

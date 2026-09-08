@@ -37,23 +37,28 @@ final class SettingsWindowController {
         window.title = model.strings.settingsTitle
         // The title bar belongs to AppKit, so the view hands it the wording
         // again whenever the language changes underneath it.
-        window.contentView = NSHostingView(rootView: SettingsView(model: model) { [weak window] title in
-            window?.title = title
-        })
+        window.contentView = NSHostingView(
+            rootView: SettingsView(model: model) { [weak window] title in
+                window?.title = title
+            }
+            .frame(width: SettingsView.size.width, height: SettingsView.size.height))
         return window
     }
 }
 
 struct SettingsView: View {
+    /// How big the *window* is, which is not how tall this view wants to be.
+    ///
     /// Shorter than the form it holds, which is fine: a grouped form on macOS
     /// is backed by a scroll view, so the switches below the fold are a scroll
-    /// away rather than gone.
+    /// away rather than gone. Sized to the screen rather than to the content,
+    /// because the content outgrew the screen: the full form is around 960 pt
+    /// and a 14-inch MacBook Pro has about 957 pt of usable height, so a window
+    /// tall enough to show all of it would hang off the bottom of the display
+    /// it was centred on.
     ///
-    /// Sized to the screen rather than to the content, because the content
-    /// outgrew the screen: the full form is around 960 pt and a 14-inch
-    /// MacBook Pro has about 957 pt of usable height, so a window tall enough
-    /// to show all of it would hang off the bottom of the display it was
-    /// centred on.
+    /// Applied by whoever puts this in a window, so that a caller which is not
+    /// a window -- the readme's screenshots -- can ask for the whole form.
     static let size = CGSize(width: 460, height: 640)
 
     @Bindable var model: RoostModel
@@ -164,7 +169,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: Self.size.width, height: Self.size.height)
         .onChange(of: model.language, initial: true) { retitle(strings.settingsTitle) }
     }
 
